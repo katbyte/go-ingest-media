@@ -67,6 +67,7 @@ func Make(cmdName string) (*cobra.Command, error) {
 						if !m.DstExists() {
 							c.Printf("  <white>%s</> --> <green>%s</>", m.SrcFolder, m.DstFolder)
 							c.Printf(" <darkGray>mv '%s' '%s'...</>\n", m.SrcPath(), m.DstPath())
+							m.Move(4)
 							continue
 						}
 
