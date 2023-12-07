@@ -1,0 +1,6 @@
+.DS_Store
+.idea/
+go-injest-media
+*.sqlite3
+*.csv
+graphs
