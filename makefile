@@ -33,7 +33,7 @@ test: build
 
 build:
 	@echo "==> building..."
-	go build -ldflags "-X github.com/katbyte/go-injest-media/lib/version.GitCommit=${GIT_COMMIT}"
+	go build -ldflags "-X github.com/katbyte/go-ingest-media/lib/version.GitCommit=${GIT_COMMIT}"
 
 goimports:
 	@echo "==> Fixing imports code with goimports..."
@@ -56,7 +56,7 @@ depscheck:
 
 install:
 	@echo "==> installing..."
-	go install -ldflags "-X github.com/katbyte/go-injest-media/lib/version.GitCommit=${GIT_COMMIT}" .
+	go install -ldflags "-X github.com/katbyte/go-ingest-media/lib/version.GitCommit=${GIT_COMMIT}" .
 
 check-all: build test lint depscheck
 

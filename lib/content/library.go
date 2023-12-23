@@ -4,15 +4,16 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/katbyte/go-injest-media/lib/folders"
+	"github.com/katbyte/go-ingest-media/lib/ktio"
 )
 
 type LibraryType int
 
 const (
-	Unknown LibraryType = iota
-	Series
-	Movies
+	LibraryTypeUnknown LibraryType = iota
+	LibraryTypeSeries
+	LibraryTypeMovies
+	LibraryTypeStandup
 )
 
 type Library struct {
@@ -22,14 +23,19 @@ type Library struct {
 	DstPath       string
 	Type          LibraryType
 	LetterFolders bool
+
+	Mappings []Mapping
 }
 
+// filebot -> t/s & t/m, manual move to m.anime s.tv etc
 var libraries = []Library{
-	{SrcFolder: "m.anime", DstFolder: "anime/movies", Type: Movies, LetterFolders: false},
-	{SrcFolder: "m.movies", DstFolder: "movies", Type: Movies, LetterFolders: true},
-	// {InPath: "s.anime", OutPath: "anime/series", Type: Series},
-	// {InPath: "s.docu", OutPath: "docu/docuseries", Type: Series},
-	// {InPath: "s.tv", OutPath: "tv", Type: Series},
+	{SrcFolder: "m.anime", DstFolder: "anime/movies", Type: LibraryTypeMovies, LetterFolders: false},
+	{SrcFolder: "m.movies", DstFolder: "movies", Type: LibraryTypeMovies, LetterFolders: true},
+	{SrcFolder: "m.docu", DstFolder: "docu/documentary", Type: LibraryTypeMovies},
+	{SrcFolder: "m.standup", DstFolder: "standup", Type: LibraryTypeStandup},
+	// {InPath: "s.anime", OutPath: "anime/series", Type: LibraryTypeSeries},
+	// {InPath: "s.docu", OutPath: "docu/docuseries", Type: LibraryTypeSeries},
+	// {InPath: "s.tv", OutPath: "tv", Type: LibraryTypeSeries},
 }
 
 func GetLibraries(srcPath, dstPath string) []Library {
@@ -39,6 +45,7 @@ func GetLibraries(srcPath, dstPath string) []Library {
 		l2 := l
 		l2.SrcPath = filepath.Join(srcPath, l2.SrcFolder)
 		l2.DstPath = filepath.Join(dstPath, l2.DstFolder)
+		l2.Mappings = l2.mappings()
 		updated[i] = l2
 	}
 
@@ -48,7 +55,7 @@ func GetLibraries(srcPath, dstPath string) []Library {
 func (l Library) Contents(onContentError func(folder string, err error)) ([]ContentInterface, error) {
 	var contents []ContentInterface
 
-	folders, err := folders.List(l.SrcPath)
+	folders, err := ktio.ListFolders(l.SrcPath)
 	if err != nil {
 		return nil, fmt.Errorf("error listing content folders: %w", err)
 	}
@@ -56,9 +63,9 @@ func (l Library) Contents(onContentError func(folder string, err error)) ([]Cont
 	for _, f := range folders {
 		var c ContentInterface
 
-		if l.Type == Movies {
+		if l.Type == LibraryTypeMovies || l.Type == LibraryTypeStandup { // standup is the same for now except a slighty different alt folder
 			c, err = l.MovieFor(f)
-		} else if l.Type == Series {
+		} else if l.Type == LibraryTypeSeries {
 			// c, err = l.SeriesFor(f) TODO
 			return nil, fmt.Errorf("series: %s", f)
 		} else {

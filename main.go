@@ -4,11 +4,11 @@ import (
 	"os"
 
 	c "github.com/gookit/color" // nolint: misspell
-	"github.com/katbyte/go-injest-media/cli"
-	"github.com/katbyte/go-injest-media/lib/clog"
+	"github.com/katbyte/go-ingest-media/cli"
+	"github.com/katbyte/go-ingest-media/lib/clog"
 )
 
-const cmdName = "go-injest-media"
+const cmdName = "go-ingest-media"
 
 func main() {
 	cmd, err := cli.Make(cmdName)

@@ -1,6 +1,6 @@
 .DS_Store
 .idea/
-go-injest-media
+go-ingest-media
 *.sqlite3
 *.csv
 graphs

@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/katbyte/go-injest-media/lib/folders"
+	"github.com/katbyte/go-ingest-media/lib/ktio"
 )
 
 // represents "the folder" for a movie or series
@@ -32,10 +32,10 @@ func (l Library) ContentFor(path string) (*Content, error) {
 	}
 
 	// lookup potential alt folder
-	var altFolder *string /*, err := GetAltFolder(f)
+	altFolder, err := l.AltFolderFor(f)
 	if err != nil {
 		return nil, err
-	}*/
+	}
 	if altFolder != nil {
 		m.DstFolder = *altFolder
 	} else {
@@ -70,5 +70,9 @@ func (c Content) DstPath() string {
 }
 
 func (c Content) DstExists() bool {
-	return folders.Exists(c.DstPath())
+	return ktio.PathExists(c.DstPath())
+}
+
+func (c Content) MoveFolder(confirm bool, indent int) error {
+	return ktio.RunCommand(indent, confirm, "mv", "-v", c.SrcPath(), c.DstPath())
 }

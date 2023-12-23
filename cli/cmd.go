@@ -2,11 +2,9 @@ package cli
 
 import (
 	"fmt"
-	"path"
-	"sort"
 
 	c "github.com/gookit/color"
-	"github.com/katbyte/go-injest-media/lib/content"
+	"github.com/katbyte/go-ingest-media/lib/content"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -24,21 +22,25 @@ func ValidateParams(params []string) func(cmd *cobra.Command, args []string) err
 	}
 }
 
+// TODO
+// check if movie exists in documentatry folder?
+// or find a way to blah, OR just let emby figure it out and then movie it
+
 func Make(cmdName string) (*cobra.Command, error) {
 
 	root := &cobra.Command{
 		Use:           cmdName + " [command]",
-		Short:         cmdName + "injest media into my specific folder structure",
-		Long:          `A CLI tool to intelligently injest media into my specific folder structure taking into account existing media and video format/quality.`,
+		Short:         cmdName + "go-ingest-media media into my specific folder structure",
+		Long:          `A CLI tool to intelligently go-ingest-media media into my specific folder structure taking into account existing media and video format/quality.`,
 		SilenceErrors: true,
-		PreRunE:       ValidateParams([]string{"base-in", "base-out"}),
+		PreRunE:       ValidateParams([]string{"src", "dst"}),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			f := GetFlags()
 
 			for _, l := range content.GetLibraries(f.BaseSrcPath, f.BaseDstPath) {
 
 				c.Printf("%s/<white>%s</> --> %s/<lightBlue>%s</> ", f.BaseSrcPath, l.SrcFolder, f.BaseDstPath, l.DstFolder)
-				if l.Type == content.Movies {
+				if l.Type == content.LibraryTypeMovies {
 					c.Printf("<cyan>(movies)</> ")
 				} else {
 					c.Printf("<magenta>(series)</> ")
@@ -49,31 +51,18 @@ func Make(cmdName string) (*cobra.Command, error) {
 				}
 				fmt.Println()
 
-				if l.Type == content.Movies {
-					movies, err := l.Movies(func(f string, err error) {
-						c.Printf("  %s --> <red>ERROR:</>%s</>\n", path.Base(f), err)
-					})
+				if l.Type == content.LibraryTypeMovies || l.Type == content.LibraryTypeStandup { // standup is the same except a slighty different alt folder
+					err := ProcessMovies(l)
 					if err != nil {
-						return fmt.Errorf("error getting movies: %w", err)
+						return err
 					}
-
-					sort.Slice(movies, func(i, j int) bool {
-						return movies[i].Letter+"/"+movies[i].DstFolder < movies[j].Letter+"/"+movies[j].DstFolder
-					})
-
-					for _, m := range movies {
-
-						// if not exists just move folde
-						if !m.DstExists() {
-							c.Printf("  <white>%s</> --> <green>%s</>", m.SrcFolder, m.DstFolder)
-							c.Printf(" <darkGray>mv '%s' '%s'...</>\n", m.SrcPath(), m.DstPath())
-							m.Move(4)
-							continue
-						}
-
-						c.Printf("  <white>%s</> --> <yellow>%s</>\n", m.SrcFolder, m.DstFolder)
-						continue
+				} else if l.Type == content.LibraryTypeSeries {
+					err := ProcessSeries(l)
+					if err != nil {
+						return err
 					}
+				} else {
+					panic("unknown library type: " + string(l.Type))
 				}
 			}
 
