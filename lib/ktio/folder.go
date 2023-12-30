@@ -65,3 +65,12 @@ func Move(source, destination string) error {
 
 	return nil
 }
+
+func FolderEmpty(dirPath string) (bool, error) {
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
+		return false, err
+	}
+
+	return len(entries) == 0, nil
+}

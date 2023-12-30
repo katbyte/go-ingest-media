@@ -47,6 +47,7 @@ var mappings = map[LibraryType][]Mapping{
 		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^Perry Mason")},
 	},
 	LibraryTypeStandup: {},
+	LibraryTypeSeries:  {},
 }
 
 // Ong-Bak 3 (2010) -> Ong Bak 3 (2010)

@@ -115,9 +115,9 @@ func RenderVideoComparisonTable(srcVideo content.VideoFile, dstVideos []content.
 		if row.Equal(srcVideo, dstVideo) {
 			t.AppendRow(table.Row{n, c.Sprintf("<lightBlue>" + row.Value(srcVideo) + "</>"), c.Sprintf("<lightBlue>" + row.Value(dstVideo) + "</>")})
 		} else if row.BetterThan(srcVideo, dstVideo) {
-			t.AppendRow(table.Row{n, c.Sprintf("<red>" + row.Value(srcVideo) + "</>"), c.Sprintf("<green>" + row.Value(dstVideo) + "</>")})
-		} else {
 			t.AppendRow(table.Row{n, c.Sprintf("<green>" + row.Value(srcVideo) + "</>"), c.Sprintf("<red>" + row.Value(dstVideo) + "</>")})
+		} else {
+			t.AppendRow(table.Row{n, c.Sprintf("<red>" + row.Value(srcVideo) + "</>"), c.Sprintf("<green>" + row.Value(dstVideo) + "</>")})
 		}
 	}
 

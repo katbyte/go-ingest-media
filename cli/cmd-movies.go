@@ -51,12 +51,12 @@ func ProcessMovies(l content.Library) error {
 
 		// load video details
 		if err = m.LoadVideoInfo(); err != nil {
-			c.Printf(" ERROR:</>%s\n\n", err)
+			c.Printf(" <red>ERROR:</>%s\n\n", err)
 			continue
 		}
 
 		if len(m.DstVideos) > 1 {
-			c.Printf(" ERROR:</>%s</>\n", "destination has multiple video files\n\n")
+			c.Printf(" <red>ERROR:</>%s\n", "destination has multiple video files\n\n")
 			continue
 		} else if len(m.DstVideos) == 0 {
 			c.Printf("  <yellow>WARNING</> - destination has no video files\n")
@@ -69,6 +69,11 @@ func ProcessMovies(l content.Library) error {
 		if same {
 			c.Printf("  <green>SAME</> - adding to delete list\n\n\n")
 			pathsToDelete = append(pathsToDelete, m.SrcPath())
+			continue
+		}
+
+		if f.IgnoreExisting {
+			c.Printf("  <magenta>EXISTING</> - skipping due to flag\n\n\n")
 			continue
 		}
 
@@ -124,6 +129,8 @@ func ProcessMovies(l content.Library) error {
 				ktio.RunCommand(4, f.Confirm, "rm", "-rfv", path)
 			}
 		}
+		fmt.Println()
+
 	}
 	return nil
 }

@@ -33,9 +33,10 @@ var libraries = []Library{
 	{SrcFolder: "m.movies", DstFolder: "movies", Type: LibraryTypeMovies, LetterFolders: true},
 	{SrcFolder: "m.docu", DstFolder: "docu/documentary", Type: LibraryTypeMovies},
 	{SrcFolder: "m.standup", DstFolder: "standup", Type: LibraryTypeStandup},
-	// {InPath: "s.anime", OutPath: "anime/series", Type: LibraryTypeSeries},
-	// {InPath: "s.docu", OutPath: "docu/docuseries", Type: LibraryTypeSeries},
-	// {InPath: "s.tv", OutPath: "tv", Type: LibraryTypeSeries},
+	{SrcFolder: "s.tv", DstFolder: "tv", Type: LibraryTypeSeries, LetterFolders: true},
+	// {SrcFolder: "s.anime", DstFolder: "anime/series", Type: LibraryTypeSeries},
+	// {SrcFolder: "s.docu", DstFolder: "docu/docuseries", Type: LibraryTypeSeries},
+
 }
 
 func GetLibraries(srcPath, dstPath string) []Library {
@@ -66,8 +67,7 @@ func (l Library) Contents(onContentError func(folder string, err error)) ([]Cont
 		if l.Type == LibraryTypeMovies || l.Type == LibraryTypeStandup { // standup is the same for now except a slighty different alt folder
 			c, err = l.MovieFor(f)
 		} else if l.Type == LibraryTypeSeries {
-			// c, err = l.SeriesFor(f) TODO
-			return nil, fmt.Errorf("series: %s", f)
+			c, err = l.SeriesFor(f)
 		} else {
 			return nil, fmt.Errorf("unknown library type: %s", l.Type)
 		}
@@ -92,6 +92,22 @@ func (l Library) Movies(onContentError func(folder string, err error)) ([]Movie,
 
 	for _, c := range contents {
 		m := *c.(*Movie)
+		movies = append(movies, m)
+	}
+
+	return movies, nil
+}
+
+func (l Library) Series(onContentError func(folder string, err error)) ([]Series, error) {
+	var movies []Series
+
+	contents, err := l.Contents(onContentError)
+	if err != nil {
+		return nil, fmt.Errorf("error getting movies: %w", err)
+	}
+
+	for _, c := range contents {
+		m := *c.(*Series)
 		movies = append(movies, m)
 	}
 

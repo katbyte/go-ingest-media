@@ -8,9 +8,10 @@ import (
 )
 
 type FlagData struct {
-	BaseSrcPath string
-	BaseDstPath string
-	Confirm     bool
+	BaseSrcPath    string
+	BaseDstPath    string
+	Confirm        bool
+	IgnoreExisting bool
 }
 
 func configureFlags(root *cobra.Command) error {
@@ -20,13 +21,14 @@ func configureFlags(root *cobra.Command) error {
 	pflags.StringVarP(&flags.BaseSrcPath, "src", "s", "/mnt/ztmp/torrents/sorted", "")
 	pflags.StringVarP(&flags.BaseDstPath, "dst", "d", "/mnt/video", "")
 	pflags.BoolVarP(&flags.Confirm, "confirm", "c", false, "")
-	// pflags.BoolVarP(&flags.FullFetch, "full", "f", false, "do a full fetch and not abort")
+	pflags.BoolVarP(&flags.IgnoreExisting, "ignore-existing", "i", false, "")
 
 	// binding map for viper/pflag -> env
 	m := map[string]string{
-		"src":     "INGEST_SRC_PATH",
-		"dst":     "INGEST_SRC_PATH",
-		"confirm": "INGEST_CONFIRM",
+		"src":             "INGEST_SRC_PATH",
+		"dst":             "INGEST_SRC_PATH",
+		"confirm":         "INGEST_CONFIRM",
+		"ignore-existing": "INGEST_IGNORE_EXISTING",
 	}
 
 	for name, env := range m {
@@ -47,8 +49,9 @@ func configureFlags(root *cobra.Command) error {
 func GetFlags() FlagData {
 	// there has to be an easier way....
 	return FlagData{
-		BaseSrcPath: viper.GetString("src"),
-		BaseDstPath: viper.GetString("dst"),
-		Confirm:     viper.GetBool("confirm"),
+		BaseSrcPath:    viper.GetString("src"),
+		BaseDstPath:    viper.GetString("dst"),
+		Confirm:        viper.GetBool("confirm"),
+		IgnoreExisting: viper.GetBool("ignore-existing"),
 	}
 }
