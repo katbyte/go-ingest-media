@@ -33,6 +33,7 @@ var mappings = map[LibraryType][]Mapping{
 		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^American Pie")},
 		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^Amityville")},
 		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^Asterix")},
+		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^Batman")},
 		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^South Park")},
 		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^Transformers")},
 		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^Teenage Mutant Ninja Turtles")},
@@ -47,7 +48,9 @@ var mappings = map[LibraryType][]Mapping{
 		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^Perry Mason")},
 	},
 	LibraryTypeStandup: {},
-	LibraryTypeSeries:  {},
+	LibraryTypeSeries: {
+		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^Batman")},
+	},
 }
 
 // Ong-Bak 3 (2010) -> Ong Bak 3 (2010)

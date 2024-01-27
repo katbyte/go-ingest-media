@@ -105,7 +105,7 @@ func ProcessMovies(l content.Library) error {
 		case 's':
 			continue
 		case 'q':
-			return nil
+			return fmt.Errorf("quitting")
 
 		}
 	}

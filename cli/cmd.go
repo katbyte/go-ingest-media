@@ -26,6 +26,15 @@ func ValidateParams(params []string) func(cmd *cobra.Command, args []string) err
 // check if movie exists in documentatry folder?
 // or find a way to blah, OR just let emby figure it out and then movie it
 
+// NEW COMMAND - find all movies/series that are "documentary" type and move them to the documentary folder -
+// check if already exists, use move logic like it was a new movie, if not prompt/ask with link to moviedb?
+
+// NEW COMMAND - find all movies/series that are "standup" type and move them to the standup folder?
+// parse comedy and then look up somehow
+
+// NEW COMMAND - search through all folders and apply "library mappings" to them
+// ie if there is a Batman movie check if it needs to be updated to conform to the new library mapps
+
 func Make(cmdName string) (*cobra.Command, error) {
 
 	root := &cobra.Command{

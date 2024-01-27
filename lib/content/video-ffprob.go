@@ -38,6 +38,7 @@ type FFProbeStream struct {
 	CodecTimeBase      string            `json:"codec_time_base"`
 	CodecTagString     string            `json:"codec_tag_string"`
 	CodecTag           string            `json:"codec_tag"`
+	Disposition        map[string]int    `json:"disposition"`
 	Width              int               `json:"width,omitempty"`
 	Height             int               `json:"height,omitempty"`
 	DisplayAspectRatio string            `json:"display_aspect_ratio,omitempty"`
@@ -90,7 +91,6 @@ func FFProbe(pathToVideo string) (*FFProbeOutput, error) {
 	return &info, nil
 }
 
-// VideoStream contains relevant details for a video stream
 type FFProbeStreamVideo struct {
 	Index              int               `json:"index"`
 	CodecName          string            `json:"codec_name"`
@@ -106,25 +106,10 @@ type FFProbeStreamVideo struct {
 	Tags               map[string]string `json:"tags"`
 }
 
-// AudioStream contains relevant details for an audio stream
-type FFProbeStreamAudio struct {
-	Index         int               `json:"index"`
-	CodecName     string            `json:"codec_name"`
-	CodecLongName string            `json:"codec_long_name"`
-	SampleRate    string            `json:"sample_rate"`
-	Channels      int               `json:"channels"`
-	ChannelLayout string            `json:"channel_layout"`
-	Duration      float64           `json:"duration"`
-	BitRate       int               `json:"bit_rate"`
-	Tags          map[string]string `json:"tags"`
-	Language      string            `json:"language"`
-}
-
-// VideoStreams returns all video streams from the FFProbe output
 func (output *FFProbeOutput) VideoStreams() ([]FFProbeStreamVideo, error) {
 	var videoStreams []FFProbeStreamVideo
 	for _, s := range output.Streams {
-		if s.CodecType == "video" {
+		if s.CodecType == "video" && s.Disposition["attached_pic"] != 1 {
 			vs := FFProbeStreamVideo{
 				Index:              s.Index,
 				CodecName:          s.CodecName,
@@ -157,7 +142,19 @@ func (output *FFProbeOutput) VideoStreams() ([]FFProbeStreamVideo, error) {
 	return videoStreams, nil
 }
 
-// AudioStreams returns all audio streams from the FFProbe output
+type FFProbeStreamAudio struct {
+	Index         int               `json:"index"`
+	CodecName     string            `json:"codec_name"`
+	CodecLongName string            `json:"codec_long_name"`
+	SampleRate    string            `json:"sample_rate"`
+	Channels      int               `json:"channels"`
+	ChannelLayout string            `json:"channel_layout"`
+	Duration      float64           `json:"duration"`
+	BitRate       int               `json:"bit_rate"`
+	Tags          map[string]string `json:"tags"`
+	Language      string            `json:"language"`
+}
+
 func (output *FFProbeOutput) AudioStreams() ([]FFProbeStreamAudio, error) {
 	var audioStreams []FFProbeStreamAudio
 	for _, s := range output.Streams {
@@ -195,4 +192,61 @@ func (output *FFProbeOutput) AudioStreams() ([]FFProbeStreamAudio, error) {
 	}
 
 	return audioStreams, nil
+}
+
+type FFProbeStreamImage struct {
+	Index         int               `json:"index"`
+	CodecName     string            `json:"codec_name"`
+	CodecLongName string            `json:"codec_long_name"`
+	Width         int               `json:"width,omitempty"`
+	Height        int               `json:"height,omitempty"`
+	Tags          map[string]string `json:"tags"`
+}
+
+func (output *FFProbeOutput) ImageStreams() ([]FFProbeStreamImage, error) {
+	var imageStreams []FFProbeStreamImage
+	for _, s := range output.Streams {
+		isImageStream := s.CodecType == "image"
+		isAttachedPic := s.CodecType == "video" && s.Disposition["attached_pic"] == 1
+
+		if isImageStream || isAttachedPic {
+			imgStream := FFProbeStreamImage{
+				Index:         s.Index,
+				CodecName:     s.CodecName,
+				CodecLongName: s.CodecLongName,
+				Width:         s.Width,
+				Height:        s.Height,
+				Tags:          s.Tags,
+			}
+			imageStreams = append(imageStreams, imgStream)
+		}
+	}
+	return imageStreams, nil
+}
+
+type FFProbeStreamSubtitle struct {
+	Index         int               `json:"index"`
+	CodecName     string            `json:"codec_name"`
+	CodecLongName string            `json:"codec_long_name"`
+	Language      string            `json:"language,omitempty"`
+	Tags          map[string]string `json:"tags"`
+}
+
+func (output *FFProbeOutput) SubtitleStreams() ([]FFProbeStreamSubtitle, error) {
+	var subtitleStreams []FFProbeStreamSubtitle
+	for _, s := range output.Streams {
+		if s.CodecType == "subtitle" { // Adjust this condition based on how FFProbe marks subtitle streams
+			subStream := FFProbeStreamSubtitle{
+				Index:         s.Index,
+				CodecName:     s.CodecName,
+				CodecLongName: s.CodecLongName,
+				Tags:          s.Tags,
+			}
+			if language, ok := s.Tags["language"]; ok {
+				subStream.Language = language
+			}
+			subtitleStreams = append(subtitleStreams, subStream)
+		}
+	}
+	return subtitleStreams, nil
 }

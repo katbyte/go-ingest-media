@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 
 	"github.com/katbyte/go-ingest-media/lib/ktio"
@@ -24,6 +25,8 @@ type VideoFile struct {
 
 	VideoStream  FFProbeStreamVideo
 	AudioStreams []FFProbeStreamAudio
+	ImageStreams []FFProbeStreamImage
+	Subtitles    []FFProbeStreamSubtitle
 }
 
 // lazy "close enough compare"
@@ -34,7 +37,10 @@ func (v VideoFile) IsBasicallyTheSameTo(v2 VideoFile) bool {
 		v.BitRate == v2.BitRate &&
 		v.Resolution == v2.Resolution &&
 		v.VideoStream.CodecName == v2.VideoStream.CodecName &&
-		v.VideoStream.Profile == v2.VideoStream.Profile
+		v.VideoStream.Profile == v2.VideoStream.Profile &&
+		len(v.AudioStreams) == len(v2.AudioStreams) &&
+		len(v.ImageStreams) == len(v2.ImageStreams) &&
+		len(v.Subtitles) == len(v2.Subtitles)
 }
 
 func VideosInPath(path string) ([]VideoFile, error) {
@@ -106,5 +112,37 @@ func VideoFor(path string) (*VideoFile, error) {
 		return nil, fmt.Errorf("expected at least 1 audio stream, found %d", len(v.AudioStreams))
 	}
 
+	v.ImageStreams, err = probe.ImageStreams()
+	if err != nil {
+		return nil, fmt.Errorf("error getting image streams: %w", err)
+	}
+
+	v.Subtitles, err = probe.SubtitleStreams()
+	if err != nil {
+		return nil, fmt.Errorf("error getting subtitle streams: %w", err)
+	}
+
 	return &v, nil
+}
+
+func (v *VideoFile) AudioStreamsSortedByLanguage() []FFProbeStreamAudio {
+	sortedAudioStreams := make([]FFProbeStreamAudio, len(v.AudioStreams))
+	copy(sortedAudioStreams, v.AudioStreams)
+
+	sort.Slice(sortedAudioStreams, func(i, j int) bool {
+		return sortedAudioStreams[i].Language < sortedAudioStreams[j].Language
+	})
+
+	return sortedAudioStreams
+}
+
+func (v *VideoFile) SubtitlesSortedByLanguage() []FFProbeStreamSubtitle {
+	sortedSubtitles := make([]FFProbeStreamSubtitle, len(v.Subtitles))
+	copy(sortedSubtitles, v.Subtitles)
+
+	sort.Slice(sortedSubtitles, func(i, j int) bool {
+		return sortedSubtitles[i].Language < sortedSubtitles[j].Language
+	})
+
+	return sortedSubtitles
 }

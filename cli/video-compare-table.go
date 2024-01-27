@@ -37,7 +37,7 @@ type TableRow struct {
 	BetterThan func(v1, v2 content.VideoFile) bool
 }
 
-var videoTableRows = []TableRow{
+var rows = []TableRow{
 	{"Ext",
 		func(file content.VideoFile) string { return file.Ext },
 		func(v1, v2 content.VideoFile) bool { return v1.Ext == v2.Ext },
@@ -89,17 +89,6 @@ func RenderVideoComparisonTable(srcVideo content.VideoFile, dstVideos []content.
 
 	same := srcVideo.IsBasicallyTheSameTo(dstVideo)
 
-	/*tracks := len (m.SrcVideo.AudioStreams)
-	if len(dstVideo.AudioStreams) > tracks {
-		tracks = len(dstVideo.AudioStreams)
-	}
-
-	//audio track information
-	audio := make([]string, tracks)
-	for i, a := range m.SrcVideo.AudioStreams {
-
-	}*/
-
 	var buf bytes.Buffer
 	t := table.NewWriter()
 	t.SetOutputMirror(&buf)
@@ -110,7 +99,8 @@ func RenderVideoComparisonTable(srcVideo content.VideoFile, dstVideos []content.
 		t.AppendHeader(table.Row{"", c.Sprintf("<white>Source</>"), c.Sprintf("<white>Destination</>")})
 	}
 	t.AppendSeparator()
-	for _, row := range videoTableRows {
+
+	for _, row := range rows {
 		n := c.Sprintf("<darkGray>" + row.Name + "</>")
 		if row.Equal(srcVideo, dstVideo) {
 			t.AppendRow(table.Row{n, c.Sprintf("<lightBlue>" + row.Value(srcVideo) + "</>"), c.Sprintf("<lightBlue>" + row.Value(dstVideo) + "</>")})
@@ -119,6 +109,106 @@ func RenderVideoComparisonTable(srcVideo content.VideoFile, dstVideos []content.
 		} else {
 			t.AppendRow(table.Row{n, c.Sprintf("<red>" + row.Value(srcVideo) + "</>"), c.Sprintf("<green>" + row.Value(dstVideo) + "</>")})
 		}
+	}
+
+	// audio rows
+	maxAudioStreams := len(srcVideo.AudioStreams)
+	if len(dstVideos[0].AudioStreams) > maxAudioStreams {
+		maxAudioStreams = len(dstVideos[0].AudioStreams)
+	}
+
+	srcAudioSorted := srcVideo.AudioStreamsSortedByLanguage()
+	dstAudioSorted := dstVideo.AudioStreamsSortedByLanguage()
+
+	for i := 0; i < maxAudioStreams; i++ {
+		var srcStream, dstStream string
+		if i < len(srcAudioSorted) {
+			srcStream = fmt.Sprintf("%s (%s)", srcAudioSorted[i].Language, srcAudioSorted[i].CodecName)
+		}
+		if i < len(dstAudioSorted) {
+			dstStream = fmt.Sprintf("%s (%s)", dstAudioSorted[i].Language, dstAudioSorted[i].CodecName)
+		}
+
+		srcColour := "lightBlue"
+		dstColour := "lightBlue"
+
+		if i < len(srcAudioSorted) && i < len(dstAudioSorted) {
+			if srcAudioSorted[i].Language == dstAudioSorted[i].Language {
+				if srcAudioSorted[i].CodecName == dstAudioSorted[i].CodecName {
+					srcColour = "lightBlue"
+					dstColour = "lightBlue"
+				} else {
+					srcColour = "magenta"
+					dstColour = "magenta"
+				}
+			} else {
+				if srcAudioSorted[i].Language == "eng" {
+					srcColour = "green"
+					dstColour = "red"
+				} else {
+					srcColour = "magenta"
+					dstColour = "magenta"
+				}
+			}
+		} else if i < len(srcAudioSorted) {
+			srcColour = "red"
+		} else if i < len(dstAudioSorted) {
+			dstColour = "green"
+		}
+
+		t.AppendRow(table.Row{
+			c.Sprintf("<darkGray>Audio %d</>", i+1),
+			c.Sprintf("<" + srcColour + ">" + srcStream + "</>"),
+			c.Sprintf("<" + dstColour + ">" + dstStream + "</>"),
+		})
+	}
+
+	// Handle subtitle streams
+	maxSubtitleStreams := len(srcVideo.Subtitles)
+	if len(dstVideo.Subtitles) > maxSubtitleStreams {
+		maxSubtitleStreams = len(dstVideo.Subtitles)
+	}
+
+	srcSubtitles := srcVideo.SubtitlesSortedByLanguage()
+	dstSubtitles := dstVideo.SubtitlesSortedByLanguage()
+
+	for i := 0; i < maxSubtitleStreams; i++ {
+		var srcStream, dstStream string
+
+		if i < len(srcSubtitles) {
+			srcStream = fmt.Sprintf("%s (%s)", srcSubtitles[i].Language, srcSubtitles[i].CodecName)
+		}
+		if i < len(dstSubtitles) {
+			dstStream = fmt.Sprintf("%s (%s)", dstSubtitles[i].Language, dstSubtitles[i].CodecName)
+		}
+
+		srcColour := "lightBlue"
+		dstColour := "lightBlue"
+
+		if i < len(srcSubtitles) && i < len(dstSubtitles) {
+			if srcSubtitles[i].Language == dstSubtitles[i].Language {
+				srcColour = "lightBlue"
+				dstColour = "lightBlue"
+			} else {
+				if srcSubtitles[i].Language == "eng" {
+					srcColour = "green"
+					dstColour = "red"
+				} else {
+					srcColour = "magenta"
+					dstColour = "magenta"
+				}
+			}
+		} else if i < len(srcSubtitles) {
+			srcColour = "red"
+		} else if i < len(dstSubtitles) {
+			dstColour = "green"
+		}
+
+		t.AppendRow(table.Row{
+			c.Sprintf("<darkGray>Subtitle %d</>", i+1),
+			c.Sprintf("<" + srcColour + ">" + srcStream + "</>"),
+			c.Sprintf("<" + dstColour + ">" + dstStream + "</>"),
+		})
 	}
 
 	t.Render()
