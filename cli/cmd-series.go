@@ -27,7 +27,7 @@ func ProcessSeries(l content.Library) error {
 		return series[i].Letter+"/"+series[i].DstFolder < series[j].Letter+"/"+series[j].DstFolder
 	})
 
-	// pathsToDelete := []string{}
+	pathsToDelete := []string{}
 
 	i := 0
 	nMovies := len(series)
@@ -82,7 +82,7 @@ func ProcessSeries(l content.Library) error {
 				continue
 			}
 
-			c.Printf("%s   season <yellow>%d</>:\n", intentStr, seasonNum)
+			c.Printf("%s   season <yellow>%d</>: <darkGray>%d episodes</>\n", intentStr, seasonNum, len(ss.Episodes))
 
 			var srcEpisodeNumbers []int
 			for k := range ss.Episodes {
@@ -93,11 +93,13 @@ func ProcessSeries(l content.Library) error {
 			sort.Ints(srcEpisodeNumbers)
 
 			// for each episode in src season
+			moveAll := false
+			deleteAll := false
 			for _, episodeNum := range srcEpisodeNumbers {
 				se := ss.Episodes[episodeNum]
 
 				// see if there is a dst episode
-				_, exists := ds.Episodes[episodeNum]
+				de, exists := ds.Episodes[episodeNum]
 				if !exists {
 					// move episode files
 					c.Printf("%s     <green>%dx%d</> --> ", intentStr, seasonNum, episodeNum)
@@ -105,14 +107,93 @@ func ProcessSeries(l content.Library) error {
 					continue
 				}
 
-				if f.IgnoreExisting {
-					c.Printf("  <magenta>EXISTING</> - skipping due to flag\n\n\n")
+				if len(se.Videos) > 1 {
+					c.Printf("%s     <red>%dx%d</> --> <red>ERROR</> - multiple source video files\n", intentStr, seasonNum, episodeNum)
 					continue
 				}
 
-				c.Printf("%s     <yellow>%dx%d</> --> ", intentStr, seasonNum, episodeNum)
-				// move video files
-				// todo
+				if len(de.Videos) > 1 {
+					c.Printf("%s     <red>%dx%d</> --> <red>ERROR</> - multiple source video files\n", intentStr, seasonNum, episodeNum)
+					continue
+				}
+
+				if len(se.Videos) == 0 {
+					c.Printf("%s     <red>%dx%d</> --> <red>ERROR</> - source has no video file\n", intentStr, seasonNum, episodeNum)
+					continue
+				}
+
+				if len(de.Videos) == 0 {
+					c.Printf("%s     <red>%dx%d</> --> <red>ERROR</> - dst has no video file\n", intentStr, seasonNum, episodeNum)
+					continue
+				}
+
+				// skip if the same and add delete command to rm collection
+				same := se.Videos[0].IsBasicallyTheSameTo(de.Videos[0])
+				if same {
+					c.Printf("%s     <green>%dx%d</> --> SAME - adding to delete list\n", intentStr, seasonNum, episodeNum)
+					pathsToDelete = append(pathsToDelete, se.Videos[0].Path)
+					continue
+				}
+
+				if f.IgnoreExisting {
+					c.Printf("%s     <magenta>%dx%d</> --> skipping due to flag\n", intentStr, seasonNum, episodeNum)
+					continue
+				}
+
+				c.Printf("%s     <yellow>%dx%d</> --> <darkGray>%s</>\n", intentStr, seasonNum, episodeNum, ds.Path)
+
+				// output video comparison table
+				RenderVideoComparisonTable(se.Videos[0], de.Videos, 15)
+
+				s := 'q'
+				if moveAll {
+					s = 'A'
+				} else if deleteAll {
+					s = 'D'
+				} else {
+					c.Printf(" overwrite (y/a/A (all)?) delete src (d/D (all)?) skip (s?) quit (q?): ")
+					s2, err := ktio.GetSelection('a', 'y', 'd', 's', 'q', 'A', 'D')
+					if err != nil {
+						c.Printf(" <red>ERROR:</>%s\n", err)
+						continue
+					}
+					s = s2
+				}
+
+				switch s {
+				case 'a':
+					fallthrough
+				case 'A':
+					fallthrough
+				case 'y':
+					if s == 'A' {
+						moveAll = true
+					}
+
+					// delete de files
+					fmt.Println()
+					de.DeleteVideoFiles()
+
+					se.MoveFiles(false, 4, ds.Path+"/")
+				case 'd':
+					fallthrough
+				case 'D':
+					if s == 'D' {
+						deleteAll = true
+					}
+
+					// c.Printf(" <darkGray>rm -rf '%s'...</>", m.SrcPath())
+
+					// m.DeleteFolder() // this seems dangerous, should we even implement it?
+					// maybe we output all rm statements at the end and let the user run them
+					pathsToDelete = append(pathsToDelete, se.Videos[0].Path)
+					fmt.Println()
+				case 's':
+					continue
+				case 'q':
+					return fmt.Errorf("quitting")
+
+				}
 				fmt.Println()
 			}
 
@@ -144,5 +225,70 @@ func ProcessSeries(l content.Library) error {
 		// for each episode in each season
 
 	}
+
+	// print delete commands
+	if len(pathsToDelete) > 0 {
+		c.Printf("\n\n<red>%d items to DELETE:</>\n", len(pathsToDelete))
+		for _, cmd := range pathsToDelete {
+			c.Printf("%s\n", cmd)
+		}
+
+		c.Printf("<red>CONFIRM DELETE</> y/n: ")
+		y, err := ktio.Confirm()
+		fmt.Println()
+		if err != nil {
+			return err
+		}
+
+		if y {
+			for _, path := range pathsToDelete {
+				ktio.RunCommand(4, f.Confirm, "rm", "-rfv", path)
+			}
+		}
+		fmt.Println()
+
+	}
+
+	// post deletes re-check all series folders for emptiness
+	c.Printf("\n\nChecking series and season folders for empties...\n")
+	for _, s := range series {
+		var srcSeasonNumbers []int
+		for k := range s.SrcSeasons {
+			srcSeasonNumbers = append(srcSeasonNumbers, k)
+		}
+
+		// Sort the srcSeasonNumbers slice
+		sort.Ints(srcSeasonNumbers)
+
+		// todo there must be a better way to do indentation...
+
+		// for each src season
+		for _, seasonNum := range srcSeasonNumbers {
+			ss := s.SrcSeasons[seasonNum]
+
+			// if empty season remove it
+			empty, err := ktio.FolderEmpty(ss.Path)
+			if err != nil {
+				c.Printf(" <red>ERROR:</> checking if empty%s\n", err)
+				continue
+			}
+			if empty {
+				ktio.RunCommand(4, f.Confirm, "rmdir", "-v", ss.Path)
+			}
+
+		}
+
+		empty, err := ktio.FolderEmpty(s.SrcPath())
+		if err != nil {
+			c.Printf(" <red>ERROR:</> checking if empty%s\n", err)
+			fmt.Println()
+			continue
+		}
+		if empty {
+			ktio.RunCommand(4, f.Confirm, "rmdir", "-v", s.SrcPath())
+			fmt.Println()
+		}
+	}
+
 	return nil
 }

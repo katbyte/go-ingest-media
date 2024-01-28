@@ -143,3 +143,9 @@ func (e *Episode) MoveFiles(confirm bool, indent int, dstPath string) error {
 
 	return nil
 }
+
+func (e *Episode) DeleteVideoFiles() {
+	for _, v := range e.Videos {
+		ktio.RunCommand(0, false, "rm", "-v", v.Path)
+	}
+}

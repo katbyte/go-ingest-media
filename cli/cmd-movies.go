@@ -78,7 +78,7 @@ func ProcessMovies(l content.Library) error {
 		}
 
 		// output video comparison table
-		RenderVideoComparisonTable(m.SrcVideo, m.DstVideos)
+		RenderVideoComparisonTable(m.SrcVideo, m.DstVideos, 2)
 
 		c.Printf(" overwrite (y/a?) delete src (d?) skip (s?) quit (q?): ")
 		s, err := ktio.GetSelection('a', 'y', 'd', 's', 'q')

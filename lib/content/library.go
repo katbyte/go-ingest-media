@@ -35,9 +35,7 @@ var libraries = []Library{
 	{SrcFolder: "m.standup", DstFolder: "standup", Type: LibraryTypeStandup},
 	{SrcFolder: "s.anime", DstFolder: "anime/series", Type: LibraryTypeSeries, LetterFolders: true},
 	{SrcFolder: "s.tv", DstFolder: "tv", Type: LibraryTypeSeries, LetterFolders: true},
-	// {SrcFolder: "s.anime", DstFolder: "anime/series", Type: LibraryTypeSeries},
-	// {SrcFolder: "s.docu", DstFolder: "docu/docuseries", Type: LibraryTypeSeries},
-
+	{SrcFolder: "s.docu", DstFolder: "docu/docuseries", Type: LibraryTypeSeries},
 }
 
 func GetLibraries(srcPath, dstPath string) []Library {

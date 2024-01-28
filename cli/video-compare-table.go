@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	c "github.com/gookit/color"
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -13,7 +14,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-var tableIndent = "  "
 var tablestyle = table.Style{
 	Name:   "VideoStyle",
 	Box:    table.StyleBoxBold,
@@ -80,7 +80,7 @@ var rows = []TableRow{
 }
 
 // todo change to accept array of videos and compare them
-func RenderVideoComparisonTable(srcVideo content.VideoFile, dstVideos []content.VideoFile) {
+func RenderVideoComparisonTable(srcVideo content.VideoFile, dstVideos []content.VideoFile, indent int) {
 
 	if len(dstVideos) > 1 {
 		panic("multiple destination videos not supported yet")
@@ -216,5 +216,5 @@ func RenderVideoComparisonTable(srcVideo content.VideoFile, dstVideos []content.
 	// trim trailing newline and indent
 	output := buf.String()
 	output = output[:len(output)-1]
-	ktio.IndentWriter{W: os.Stdout, Indent: tableIndent}.Write([]byte(output))
+	ktio.IndentWriter{W: os.Stdout, Indent: strings.Repeat(" ", indent)}.Write([]byte(output))
 }

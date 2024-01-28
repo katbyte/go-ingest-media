@@ -50,6 +50,9 @@ var mappings = map[LibraryType][]Mapping{
 	LibraryTypeStandup: {},
 	LibraryTypeSeries: {
 		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^Batman")},
+		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^Law & Order")},
+		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^Spider-Man")},
+		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^Transformers")},
 	},
 }
 
