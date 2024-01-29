@@ -16,6 +16,10 @@ var videoCodecs = [...]string{
 	"theora",     // Theora, an open video codec by the Xiph.Org Foundation
 	"wmv",        // Windows Media Video, developed by Microsoft
 	"h263",       // H.263, an older codec used in video conferencing
+	"rv40",       // RealVideo 4.0, used for streaming video
+	"rv30",       // RealVideo 3.0, used for streaming video
+	"rv20",       // RealVideo G2, used for streaming video
+	"mjpeg",      // Motion JPEG, a series of JPEG images
 }
 
 // map of extension to index in videoExtensions

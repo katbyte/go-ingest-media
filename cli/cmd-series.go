@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"sort"
 	"strconv"
@@ -10,7 +11,6 @@ import (
 	c "github.com/gookit/color"
 	"github.com/katbyte/go-ingest-media/lib/content"
 	"github.com/katbyte/go-ingest-media/lib/ktio"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 func ProcessSeries(l content.Library) error {
@@ -34,12 +34,6 @@ func ProcessSeries(l content.Library) error {
 	for _, s := range series {
 		i++
 
-		// TODO
-		// TODO
-		// TODO use go channels to run multiple moves at once/queue them up in the background
-		// TODO
-		// TODO ALSO maybe do the easy movies first then do the prompting ones after
-
 		// if not exists just move folder nice and easy like
 		if !s.DstExists() {
 			c.Printf("<darkGray>%d/%d</> <white>%s</> --> <green>%s</>", i, nMovies, s.SrcFolder, s.DstFolder)
@@ -50,8 +44,8 @@ func ProcessSeries(l content.Library) error {
 
 		// exists so lets grab the video details
 		c.Printf("<darkGray>%d/%d</>  <white>%s</> --> <yellow>%s</>\n", i, nMovies, s.SrcFolder, s.DstFolder)
-		// load video details
-		if err = s.LoadSeasons(); err != nil {
+		// load video details, we do this after confirming the dst exists
+		if err = s.LoadContentDetails(); err != nil {
 			c.Printf(" <red>ERROR:</>%s\n\n", err)
 			continue
 		}
@@ -67,8 +61,6 @@ func ProcessSeries(l content.Library) error {
 
 		// Sort the srcSeasonNumbers slice
 		sort.Ints(srcSeasonNumbers)
-
-		// todo there must be a better way to do indentation...
 
 		// for each src season
 		for _, seasonNum := range srcSeasonNumbers {
@@ -95,6 +87,7 @@ func ProcessSeries(l content.Library) error {
 			// for each episode in src season
 			moveAll := false
 			deleteAll := false
+			skipAll := false
 			for _, episodeNum := range srcEpisodeNumbers {
 				se := ss.Episodes[episodeNum]
 
@@ -113,12 +106,34 @@ func ProcessSeries(l content.Library) error {
 				}
 
 				if len(de.Videos) > 1 {
-					c.Printf("%s     <red>%dx%d</> --> <red>ERROR</> - multiple source video files\n", intentStr, seasonNum, episodeNum)
+					c.Printf("%s     <red>%dx%d</> --> <red>ERROR</> - multiple destination video files\n", intentStr, seasonNum, episodeNum)
 					continue
 				}
 
 				if len(se.Videos) == 0 {
-					c.Printf("%s     <red>%dx%d</> --> <red>ERROR</> - source has no video file\n", intentStr, seasonNum, episodeNum)
+					c.Printf("%s     <yellow>%dx%d</> --> source has no video file, copying other files except nfo\n", intentStr, seasonNum, episodeNum)
+
+					// for each source file move it unless it is a nfo file
+					for _, file := range se.OtherFiles {
+						if strings.HasSuffix(file, ".nfo") {
+							c.Printf("%s           --> nfo, skipping\n", intentStr)
+						} else {
+							c.Printf("%s           --> <white>%s</>", intentStr, path.Base(file))
+							// ask for confirmation
+							c.Printf(" move (y/n)? ")
+							if yes, err := ktio.Confirm(); err != nil {
+								c.Printf(" <red>ERROR:</>%s\n", err)
+								continue
+							} else if yes {
+								ktio.RunCommand(indent+10, f.Confirm, "mv", "-v", file, ds.Path+"/")
+							} else {
+								// add to deletes
+								fmt.Println()
+								pathsToDelete = append(pathsToDelete, file)
+							}
+						}
+					}
+
 					continue
 				}
 
@@ -150,9 +165,11 @@ func ProcessSeries(l content.Library) error {
 					s = 'A'
 				} else if deleteAll {
 					s = 'D'
+				} else if skipAll {
+					s = 'S'
 				} else {
-					c.Printf(" overwrite (y/a/A (all)?) delete src (d/D (all)?) skip (s?) quit (q?): ")
-					s2, err := ktio.GetSelection('a', 'y', 'd', 's', 'q', 'A', 'D')
+					c.Printf(" overwrite (y/a/A (all)?) delete src (d/D (all)?) skip (s/S?) quit (q?): ")
+					s2, err := ktio.GetSelection('a', 'y', 'd', 's', 'q', 'A', 'D', 'S')
 					if err != nil {
 						c.Printf(" <red>ERROR:</>%s\n", err)
 						continue
@@ -161,33 +178,31 @@ func ProcessSeries(l content.Library) error {
 				}
 
 				switch s {
+				case 'A':
+					moveAll = true
+					fallthrough
 				case 'a':
 					fallthrough
-				case 'A':
-					fallthrough
 				case 'y':
-					if s == 'A' {
-						moveAll = true
-					}
 
 					// delete de files
 					fmt.Println()
 					de.DeleteVideoFiles()
 
 					se.MoveFiles(false, 4, ds.Path+"/")
-				case 'd':
-					fallthrough
 				case 'D':
-					if s == 'D' {
-						deleteAll = true
-					}
-
+					deleteAll = true
+					fallthrough
+				case 'd':
 					// c.Printf(" <darkGray>rm -rf '%s'...</>", m.SrcPath())
 
 					// m.DeleteFolder() // this seems dangerous, should we even implement it?
 					// maybe we output all rm statements at the end and let the user run them
 					pathsToDelete = append(pathsToDelete, se.Videos[0].Path)
 					fmt.Println()
+				case 'S':
+					skipAll = true
+					continue
 				case 's':
 					continue
 				case 'q':
@@ -210,6 +225,16 @@ func ProcessSeries(l content.Library) error {
 			fmt.Println()
 		}
 
+		if len(s.SpecialFiles) > 0 {
+			c.Printf("%s   <magenta>%d special files</> \n", intentStr, len(s.SpecialFiles))
+			ProcessSpecialFiles(indent, s, "specials", s.SpecialFiles, &pathsToDelete)
+		}
+
+		if len(s.ExtraFiles) > 0 {
+			c.Printf("%s   <magenta>%d extra files</> \n", intentStr, len(s.ExtraFiles))
+			ProcessSpecialFiles(indent, s, "extras", s.ExtraFiles, &pathsToDelete)
+		}
+
 		// if empty series folder then delete it
 		empty, err := ktio.FolderEmpty(s.SrcPath())
 		if err != nil {
@@ -219,11 +244,8 @@ func ProcessSeries(l content.Library) error {
 		if empty {
 			c.Printf("%s   <green>EMPTY</> - removing directory: ", intentStr)
 			ktio.RunCommand(indent+4, f.Confirm, "rmdir", "-v", s.SrcPath())
+			fmt.Println()
 		}
-		fmt.Println()
-
-		// for each episode in each season
-
 	}
 
 	// print delete commands
@@ -245,8 +267,6 @@ func ProcessSeries(l content.Library) error {
 				ktio.RunCommand(4, f.Confirm, "rm", "-rfv", path)
 			}
 		}
-		fmt.Println()
-
 	}
 
 	// post deletes re-check all series folders for emptiness
@@ -259,8 +279,6 @@ func ProcessSeries(l content.Library) error {
 
 		// Sort the srcSeasonNumbers slice
 		sort.Ints(srcSeasonNumbers)
-
-		// todo there must be a better way to do indentation...
 
 		// for each src season
 		for _, seasonNum := range srcSeasonNumbers {
@@ -281,13 +299,46 @@ func ProcessSeries(l content.Library) error {
 		empty, err := ktio.FolderEmpty(s.SrcPath())
 		if err != nil {
 			c.Printf(" <red>ERROR:</> checking if empty%s\n", err)
-			fmt.Println()
 			continue
 		}
 		if empty {
 			ktio.RunCommand(4, f.Confirm, "rmdir", "-v", s.SrcPath())
 			fmt.Println()
 		}
+	}
+
+	return nil
+}
+
+func ProcessSpecialFiles(indent int, s content.Series, folder string, files []string, pathsToDelete *[]string) error {
+	f := GetFlags()
+
+	dstPath := path.Join(s.DstPath(), folder)
+	if !ktio.PathExists(dstPath) {
+		if err := os.MkdirAll(dstPath, 0755); err != nil {
+			return fmt.Errorf("error creating specials directory: %w", err)
+		}
+	}
+
+	for _, file := range files {
+		c.Printf("%s       --> <white>%s</> move (y/n)? ", strings.Repeat(" ", indent), path.Base(file))
+		if yes, err := ktio.Confirm(); err != nil {
+			return fmt.Errorf("confirmation error: %w", err)
+		} else if yes {
+			if err := ktio.RunCommand(indent+6, f.Confirm, "mv", "-v", file, dstPath+"/"); err != nil {
+				return fmt.Errorf("error moving file: %w", err)
+			}
+		}
+	}
+
+	empty, err := ktio.FolderEmpty(dstPath)
+	if err != nil {
+		return fmt.Errorf("error checking if specials directory is empty: %w", err)
+	}
+	if empty {
+		c.Printf("%s   <green>EMPTY</> - removing directory: ", strings.Repeat(" ", indent))
+		ktio.RunCommand(indent+4, f.Confirm, "rmdir", "-v", dstPath)
+		fmt.Println()
 	}
 
 	return nil

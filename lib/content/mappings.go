@@ -46,6 +46,10 @@ var mappings = map[LibraryType][]Mapping{
 		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^Deathstalker")},
 		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^Mission - Impossible")},
 		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^Perry Mason")},
+		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^The Matrix")},
+		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^The Terminator")},
+		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^The Fast and the Furious")},
+		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^The Adventures of Young Indiana Jones")},
 	},
 	LibraryTypeStandup: {},
 	LibraryTypeSeries: {

@@ -25,7 +25,7 @@ type Episode struct {
 
 	Videos []VideoFile
 
-	Files []string // we want to know about these, so we can move them all, we don't care about dest files?
+	OtherFiles []string // we want to know about these, so we can move them all, we don't care about dest files?
 }
 
 func GetSeasons(path string) (map[int]Season, error) {
@@ -96,10 +96,10 @@ func (s *Season) LoadEpisodes() error {
 			episode, exists := s.Episodes[episodeNumber]
 			if !exists {
 				episode = Episode{
-					Season: s.Number,
-					Number: episodeNumber,
-					Files:  []string{},
-					Videos: []VideoFile{},
+					Season:     s.Number,
+					Number:     episodeNumber,
+					OtherFiles: []string{},
+					Videos:     []VideoFile{},
 				}
 			}
 
@@ -111,7 +111,7 @@ func (s *Season) LoadEpisodes() error {
 				}
 				episode.Videos = append(episode.Videos, *v)
 			} else {
-				episode.Files = append(episode.Files, file)
+				episode.OtherFiles = append(episode.OtherFiles, file)
 			}
 
 			s.Episodes[episodeNumber] = episode
@@ -135,7 +135,7 @@ func (e *Episode) MoveFiles(confirm bool, indent int, dstPath string) error {
 	ktio.RunCommand(indent, confirm, "mv", "-v", e.Videos[0].Path, dstPath)
 
 	// move all other files
-	for _, file := range e.Files {
+	for _, file := range e.OtherFiles {
 		// calculate indent from "seasonXepisode -->"
 		fmt.Printf("%s --> ", strings.Repeat(" ", indent-len(strconv.Itoa(e.Season))+1+len(strconv.Itoa(e.Number))))
 		ktio.RunCommand(indent, confirm, "mv", "-v", file, dstPath)
