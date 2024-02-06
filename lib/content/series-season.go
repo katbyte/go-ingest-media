@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/katbyte/go-ingest-media/lib/ktio"
 )
@@ -36,38 +37,67 @@ func GetSeasons(path string) (map[int]Season, error) {
 		return nil, fmt.Errorf("error listing source folders: %w", err)
 	}
 
+	var wg sync.WaitGroup
+	seasonsChan := make(chan Season)
+	errorChan := make(chan error)
+	doneChan := make(chan bool)
+
 	seasons := make(map[int]Season)
 	for _, f := range srcFolders {
-		s := Season{
-			Path: f,
+		wg.Add(1)
+
+		go func(f string) {
+			defer wg.Done()
+			s := Season{
+				Path: f,
+			}
+
+			// Updated regex to match folders in the format "Series Name - s##", "Series Name - s## (####)", or "Series Name - s## ()"
+			isSeason, err := regexp.MatchString(`.* - s(\d+)(?: \((\d*)\))?`, f)
+			if err != nil {
+				errorChan <- fmt.Errorf("error matching season folder: %w", err)
+				return
+			}
+			if !isSeason {
+				return // Skip folders not matching the format
+			}
+
+			// get season number and year (if present) from folder name
+			re := regexp.MustCompile(`.* - s(\d+)(?: \((\d*)\))?`)
+			matches := re.FindStringSubmatch(f)
+			s.Number, _ = strconv.Atoi(matches[1]) // Convert season number to int
+
+			if len(matches) > 2 && matches[2] != "" {
+				s.Year, _ = strconv.Atoi(matches[2]) // Convert year to int, if present
+			}
+
+			// Get the episodes in a season
+			s.LoadEpisodes()
+
+			// error if season already exists
+			if _, ok := seasons[s.Number]; ok {
+				errorChan <- fmt.Errorf("season %d already exists", s.Number)
+			}
+
+			seasonsChan <- s
+		}(f)
+
+	}
+	go func() {
+		wg.Wait()
+		close(doneChan)
+	}()
+
+	for {
+		select {
+		case s := <-seasonsChan:
+			seasons[s.Number] = s
+		case err := <-errorChan:
+			return nil, err
+		case <-doneChan:
+			return seasons, nil
 		}
 
-		// Updated regex to match folders in the format "Series Name - s##", "Series Name - s## (####)", or "Series Name - s## ()"
-		isSeason, err := regexp.MatchString(`.* - s(\d+)(?: \((\d*)\))?`, f)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing folder name: %w", err)
-		}
-		if !isSeason {
-			continue // Skip folders not matching the format
-		}
-
-		// get season number and year (if present) from folder name
-		re := regexp.MustCompile(`.* - s(\d+)(?: \((\d*)\))?`)
-		matches := re.FindStringSubmatch(f)
-		s.Number, _ = strconv.Atoi(matches[1]) // Convert season number to int
-
-		if len(matches) > 2 && matches[2] != "" {
-			s.Year, _ = strconv.Atoi(matches[2]) // Convert year to int, if present
-		}
-
-		// Get the episodes in a season
-		s.LoadEpisodes()
-
-		// error if season already exists
-		if _, ok := seasons[s.Number]; ok {
-			return nil, fmt.Errorf("season %d already exists", s.Number)
-		}
-		seasons[s.Number] = s
 	}
 
 	return seasons, nil

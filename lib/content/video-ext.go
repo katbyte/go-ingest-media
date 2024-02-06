@@ -39,7 +39,6 @@ var videoExtensions = [...]string{
 	".gifv", // HTML5 video
 	".gif",  // HTML5 video
 	".mng",  // HTML5 video
-
 }
 
 // map of extension to index in videoExtensions

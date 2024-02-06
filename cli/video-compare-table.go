@@ -123,10 +123,10 @@ func RenderVideoComparisonTable(srcVideo content.VideoFile, dstVideos []content.
 	for i := 0; i < maxAudioStreams; i++ {
 		var srcStream, dstStream string
 		if i < len(srcAudioSorted) {
-			srcStream = fmt.Sprintf("%s %s (%s)", srcAudioSorted[i].CodecName, srcAudioSorted[i].ChannelLayout, srcAudioSorted[i].CodecName)
+			srcStream = fmt.Sprintf("%s %s (%s)", srcAudioSorted[i].CodecName, srcAudioSorted[i].ChannelLayout, srcAudioSorted[i].Language)
 		}
 		if i < len(dstAudioSorted) {
-			dstStream = fmt.Sprintf("%s %s (%s)", dstAudioSorted[i].Language, dstAudioSorted[i].ChannelLayout, dstAudioSorted[i].CodecName)
+			dstStream = fmt.Sprintf("%s %s (%s)", dstAudioSorted[i].CodecName, dstAudioSorted[i].ChannelLayout, dstAudioSorted[i].Language)
 		}
 
 		srcColour := "lightBlue"
