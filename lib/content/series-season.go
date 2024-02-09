@@ -38,11 +38,12 @@ func GetSeasons(path string) (map[int]Season, error) {
 	}
 
 	var wg sync.WaitGroup
-	seasonsChan := make(chan Season)
 	errorChan := make(chan error)
 	doneChan := make(chan bool)
 
 	seasons := make(map[int]Season)
+	var mutex sync.Mutex // Mutex to synchronize access to the seasons map
+
 	for _, f := range srcFolders {
 		wg.Add(1)
 
@@ -74,12 +75,16 @@ func GetSeasons(path string) (map[int]Season, error) {
 			// Get the episodes in a season
 			s.LoadEpisodes()
 
+			// Lock the mutex to prevent concurrent writes to the seasons map
+			mutex.Lock()
+
 			// error if season already exists
 			if _, ok := seasons[s.Number]; ok {
 				errorChan <- fmt.Errorf("season %d already exists", s.Number)
 			}
 
-			seasonsChan <- s
+			seasons[s.Number] = s
+			mutex.Unlock()
 		}(f)
 
 	}
@@ -90,8 +95,6 @@ func GetSeasons(path string) (map[int]Season, error) {
 
 	for {
 		select {
-		case s := <-seasonsChan:
-			seasons[s.Number] = s
 		case err := <-errorChan:
 			return nil, err
 		case <-doneChan:
