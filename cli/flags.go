@@ -26,7 +26,7 @@ func configureFlags(root *cobra.Command) error {
 	// binding map for viper/pflag -> env
 	m := map[string]string{
 		"src":             "INGEST_SRC_PATH",
-		"dst":             "INGEST_SRC_PATH",
+		"dst":             "INGEST_DST_PATH",
 		"confirm":         "INGEST_CONFIRM",
 		"ignore-existing": "INGEST_IGNORE_EXISTING",
 	}
