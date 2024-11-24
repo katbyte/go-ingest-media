@@ -53,7 +53,7 @@ func GetSeasons(path string) (map[int]Season, error) {
 				Path: f,
 			}
 
-			// Updated regex to match folders in the format "Series Name - s##", "Series Name - s## (####)", or "Series Name - s## ()"
+			// Updated regex to match folders in the format "SeriesSource Name - s##", "SeriesSource Name - s## (####)", or "SeriesSource Name - s## ()"
 			isSeason, err := regexp.MatchString(`.* - s(\d+)(?: \((\d*)\))?`, f)
 			if err != nil {
 				errorChan <- fmt.Errorf("error matching season folder: %w", err)
