@@ -2,7 +2,6 @@ package content
 
 import (
 	"errors"
-	"fmt"
 	"path/filepath"
 	"regexp"
 	"strconv"

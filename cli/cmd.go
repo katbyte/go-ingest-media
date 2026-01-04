@@ -36,7 +36,6 @@ func ValidateParams(params []string) func(cmd *cobra.Command, args []string) err
 // ie if there is a Batman movie check if it needs to be updated to conform to the new library mapps
 
 func Make(cmdName string) (*cobra.Command, error) {
-
 	// basic import
 	root := &cobra.Command{
 		Use:           cmdName + " [command]",

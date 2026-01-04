@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -37,7 +38,7 @@ func ProcessSeries(l content.Library) error {
 		// if not exists just move folder nice and easy like
 		if !s.DstExists() {
 			c.Printf("<darkGray>%d/%d</> <white>%s</> --> <green>%s</>", i, nMovies, s.SrcFolder, s.DstFolder)
-			s.MoveFolder(f.Confirm, 4)
+			_ = s.MoveFolder(f.Confirm, 4)
 			fmt.Println()
 			continue
 		}
@@ -70,7 +71,7 @@ func ProcessSeries(l content.Library) error {
 			ds, exists := s.DstSeasons[ss.Number]
 			if !exists {
 				c.Printf("%s   season <green>%d</> --> ", intentStr, seasonNum)
-				ss.MoveFolder(f.Confirm, indent+4, s.DstPath()+"/")
+				_ = ss.MoveFolder(f.Confirm, indent+4, s.DstPath()+"/")
 				continue
 			}
 
@@ -96,17 +97,7 @@ func ProcessSeries(l content.Library) error {
 				if !exists {
 					// move episode files
 					c.Printf("%s     <green>%dx%d</> --> ", intentStr, seasonNum, episodeNum)
-					se.MoveFiles(f.Confirm, indent+10, ds.Path+"/")
-					continue
-				}
-
-				if len(se.Videos) > 1 {
-					c.Printf("%s     <red>%dx%d</> --> <red>ERROR</> - multiple source video files\n", intentStr, seasonNum, episodeNum)
-					continue
-				}
-
-				if len(de.Videos) > 1 {
-					c.Printf("%s     <red>%dx%d</> --> <red>ERROR</> - multiple destination video files\n", intentStr, seasonNum, episodeNum)
+					_ = se.MoveFiles(f.Confirm, indent+10, ds.Path+"/")
 					continue
 				}
 
@@ -125,7 +116,7 @@ func ProcessSeries(l content.Library) error {
 								c.Printf(" <red>ERROR:</>%s\n", err)
 								continue
 							} else if yes {
-								ktio.RunCommand(indent+10, f.Confirm, "mv", "-v", file, ds.Path+"/")
+								_ = ktio.RunCommand(indent+10, f.Confirm, "mv", "-v", file, ds.Path+"/")
 							} else {
 								// add to deletes
 								fmt.Println()
@@ -142,74 +133,80 @@ func ProcessSeries(l content.Library) error {
 					continue
 				}
 
-				// skip if the same and add delete command to rm collection
-				same := se.Videos[0].IsBasicallyTheSameTo(de.Videos[0])
-				if same {
-					c.Printf("%s     <green>%dx%d</> --> SAME - adding to delete list\n", intentStr, seasonNum, episodeNum)
-					pathsToDelete = append(pathsToDelete, se.Videos[0].Path)
-					continue
-				}
+				for _, srcVideo := range se.Videos {
+					isSame := false
+					for _, dstVideo := range de.Videos {
+						if srcVideo.IsBasicallyTheSameTo(dstVideo) {
+							isSame = true
+							break
+						}
+					}
 
-				if f.IgnoreExisting {
-					c.Printf("%s     <magenta>%dx%d</> --> skipping due to flag\n", intentStr, seasonNum, episodeNum)
-					continue
-				}
-
-				c.Printf("%s     <yellow>%dx%d</> --> <darkGray>%s</>\n", intentStr, seasonNum, episodeNum, ds.Path)
-
-				// output video comparison table
-				RenderVideoComparisonTable(se.Videos[0], de.Videos, 15)
-
-				s := 'q'
-				if moveAll {
-					s = 'A'
-				} else if deleteAll {
-					s = 'D'
-				} else if skipAll {
-					s = 'S'
-				} else {
-					c.Printf(" overwrite (y/a/A (all)?) delete src (d/D (all)?) skip (s/S?) quit (q?): ")
-					s2, err := ktio.GetSelection('a', 'y', 'd', 's', 'q', 'A', 'D', 'S')
-					if err != nil {
-						c.Printf(" <red>ERROR:</>%s\n", err)
+					if isSame {
+						c.Printf("%s     <green>%dx%d</> --> SAME - adding to delete list\n", intentStr, seasonNum, episodeNum)
+						pathsToDelete = append(pathsToDelete, srcVideo.Path)
 						continue
 					}
-					s = s2
-				}
 
-				switch s {
-				case 'A':
-					moveAll = true
-					fallthrough
-				case 'a':
-					fallthrough
-				case 'y':
+					if f.IgnoreExisting {
+						c.Printf("%s     <magenta>%dx%d</> --> skipping due to flag\n", intentStr, seasonNum, episodeNum)
+						continue
+					}
 
-					// delete de files
+					c.Printf("%s     <yellow>%dx%d</> --> <darkGray>%s</>\n", intentStr, seasonNum, episodeNum, ds.Path)
+
+					// output video comparison table
+					RenderVideoComparisonTable(2, srcVideo, de.Videos, -1)
+
+					var s rune
+					if moveAll {
+						s = 'A'
+					} else if deleteAll {
+						s = 'D'
+					} else if skipAll {
+						s = 'S'
+					} else {
+						c.Printf(" overwrite (y/a/A (all)?) delete src (d/D (all)?) skip (s/S?) quit (q?): ")
+						s, err = ktio.GetSelection('a', 'y', 'd', 's', 'q', 'A', 'D', 'S')
+						if err != nil {
+							c.Printf(" <red>ERROR:</>%s\n", err)
+							continue
+						}
+					}
+
+					switch s {
+					case 'A':
+						moveAll = true
+						fallthrough
+					case 'a', 'y':
+						// delete de files
+						fmt.Println()
+						for _, v := range de.Videos {
+							_ = ktio.RunCommand(4, f.Confirm, "rm", "-v", v.Path)
+						}
+
+						// move all se files
+						_ = ktio.RunCommand(4, f.Confirm, "mv", "-v", srcVideo.Path, ds.Path+"/")
+						for _, file := range se.OtherFiles {
+							_ = ktio.RunCommand(4, f.Confirm, "mv", "-v", file, ds.Path+"/")
+						}
+
+					case 'D':
+						deleteAll = true
+						fallthrough
+					case 'd':
+						pathsToDelete = append(pathsToDelete, srcVideo.Path)
+						fmt.Println()
+					case 'S':
+						skipAll = true
+						continue
+					case 's':
+						continue
+					case 'q':
+						return errors.New("quitting")
+					}
 					fmt.Println()
-					de.DeleteVideoFiles()
-
-					se.MoveFiles(false, 4, ds.Path+"/")
-				case 'D':
-					deleteAll = true
-					fallthrough
-				case 'd':
-					// c.Printf(" <darkGray>rm -rf '%s'...</>", m.SrcPath())
-
-					// m.DeleteFolder() // this seems dangerous, should we even implement it?
-					// maybe we output all rm statements at the end and let the user run them
-					pathsToDelete = append(pathsToDelete, se.Videos[0].Path)
-					fmt.Println()
-				case 'S':
-					skipAll = true
-					continue
-				case 's':
-					continue
-				case 'q':
-					return fmt.Errorf("quitting")
-
 				}
-				fmt.Println()
 			}
 
 			// if empty season remove it
@@ -227,12 +224,12 @@ func ProcessSeries(l content.Library) error {
 
 		if len(s.SpecialFiles) > 0 {
 			c.Printf("%s   <magenta>%d special files</> \n", intentStr, len(s.SpecialFiles))
-			ProcessSpecialFiles(indent, s, "specials", s.SpecialFiles, &pathsToDelete)
+			_ = ProcessSpecialFiles(indent, s, "specials", s.SpecialFiles, &pathsToDelete)
 		}
 
 		if len(s.ExtraFiles) > 0 {
 			c.Printf("%s   <magenta>%d extra files</> \n", intentStr, len(s.ExtraFiles))
-			ProcessSpecialFiles(indent, s, "extras", s.ExtraFiles, &pathsToDelete)
+			_ = ProcessSpecialFiles(indent, s, "extras", s.ExtraFiles, &pathsToDelete)
 		}
 
 		// if empty series folder then delete it
@@ -243,7 +240,7 @@ func ProcessSeries(l content.Library) error {
 		}
 		if empty {
 			c.Printf("%s   <green>EMPTY</> - removing directory: ", intentStr)
-			ktio.RunCommand(indent+4, f.Confirm, "rmdir", "-v", s.SrcPath())
+			_ = ktio.RunCommand(indent+4, f.Confirm, "rmdir", "-v", s.SrcPath())
 			fmt.Println()
 		}
 	}
@@ -264,7 +261,7 @@ func ProcessSeries(l content.Library) error {
 
 		if y {
 			for _, path := range pathsToDelete {
-				ktio.RunCommand(4, f.Confirm, "rm", "-rfv", path)
+				_ = ktio.RunCommand(4, f.Confirm, "rm", "-rfv", path)
 			}
 		}
 	}
@@ -291,7 +288,7 @@ func ProcessSeries(l content.Library) error {
 				continue
 			}
 			if empty {
-				ktio.RunCommand(4, f.Confirm, "rmdir", "-v", ss.Path)
+				_ = ktio.RunCommand(4, f.Confirm, "rmdir", "-v", ss.Path)
 			}
 
 		}
@@ -302,7 +299,7 @@ func ProcessSeries(l content.Library) error {
 			continue
 		}
 		if empty {
-			ktio.RunCommand(4, f.Confirm, "rmdir", "-v", s.SrcPath())
+			_ = ktio.RunCommand(4, f.Confirm, "rmdir", "-v", s.SrcPath())
 			fmt.Println()
 		}
 	}
@@ -315,7 +312,7 @@ func ProcessSpecialFiles(indent int, s content.Series, folder string, files []st
 
 	dstPath := path.Join(s.DstPath(), folder)
 	if !ktio.PathExists(dstPath) {
-		if err := os.MkdirAll(dstPath, 0755); err != nil {
+		if err := os.MkdirAll(dstPath, 0o755); err != nil {
 			return fmt.Errorf("error creating specials directory: %w", err)
 		}
 	}
@@ -337,7 +334,7 @@ func ProcessSpecialFiles(indent int, s content.Series, folder string, files []st
 	}
 	if empty {
 		c.Printf("%s   <green>EMPTY</> - removing directory: ", strings.Repeat(" ", indent))
-		ktio.RunCommand(indent+4, f.Confirm, "rmdir", "-v", dstPath)
+		_ = ktio.RunCommand(indent+4, f.Confirm, "rmdir", "-v", dstPath)
 		fmt.Println()
 	}
 

@@ -30,7 +30,6 @@ type Episode struct {
 }
 
 func GetSeasons(path string) (map[int]Season, error) {
-
 	// for each folder in source path
 	srcFolders, err := ktio.ListFolders(path)
 	if err != nil {
@@ -73,7 +72,7 @@ func GetSeasons(path string) (map[int]Season, error) {
 			}
 
 			// Get the episodes in a season
-			s.LoadEpisodes()
+			_ = s.LoadEpisodes()
 
 			// Lock the mutex to prevent concurrent writes to the seasons map
 			mutex.Lock()
@@ -100,10 +99,7 @@ func GetSeasons(path string) (map[int]Season, error) {
 		case <-doneChan:
 			return seasons, nil
 		}
-
 	}
-
-	return seasons, nil
 }
 
 func (s *Season) LoadEpisodes() error {
@@ -118,7 +114,6 @@ func (s *Season) LoadEpisodes() error {
 	episodeRegex := regexp.MustCompile(`.* - (\d+)x(\d+) - .*`)
 
 	for _, file := range files {
-
 		// Check if the file name matches the episode format
 		if matches := episodeRegex.FindStringSubmatch(file); matches != nil {
 			episodeNumber, err := strconv.Atoi(matches[2]) // Convert episode number to int
@@ -165,13 +160,13 @@ func (e *Episode) MoveFiles(confirm bool, indent int, dstPath string) error {
 	}
 
 	// movie video file
-	ktio.RunCommand(indent, confirm, "mv", "-v", e.Videos[0].Path, dstPath)
+	_ = ktio.RunCommand(indent, confirm, "mv", "-v", e.Videos[0].Path, dstPath)
 
 	// move all other files
 	for _, file := range e.OtherFiles {
 		// calculate indent from "seasonXepisode -->"
 		fmt.Printf("%s --> ", strings.Repeat(" ", indent-len(strconv.Itoa(e.Season))+1+len(strconv.Itoa(e.Number))))
-		ktio.RunCommand(indent, confirm, "mv", "-v", file, dstPath)
+		_ = ktio.RunCommand(indent, confirm, "mv", "-v", file, dstPath)
 	}
 
 	return nil
@@ -179,6 +174,6 @@ func (e *Episode) MoveFiles(confirm bool, indent int, dstPath string) error {
 
 func (e *Episode) DeleteVideoFiles() {
 	for _, v := range e.Videos {
-		ktio.RunCommand(0, false, "rm", "-v", v.Path)
+		_ = ktio.RunCommand(0, false, "rm", "-v", v.Path)
 	}
 }

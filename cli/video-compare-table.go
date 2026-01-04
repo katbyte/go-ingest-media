@@ -38,177 +38,226 @@ type TableRow struct {
 }
 
 var rows = []TableRow{
-	{"Ext",
+	{
+		"Ext",
 		func(file content.VideoFile) string { return file.Ext },
 		func(v1, v2 content.VideoFile) bool { return v1.Ext == v2.Ext },
 		func(v1, v2 content.VideoFile) bool {
 			return content.VideoExtensionIndex(v1.Ext) > content.VideoExtensionIndex(v2.Ext)
 		},
 	},
-	{"Size",
+	{
+		"Size",
 		func(file content.VideoFile) string { return fmt.Sprintf("%0.2f", file.SizeGb) },
 		func(v1, v2 content.VideoFile) bool { return v1.SizeGb == v2.SizeGb },
 		func(v1, v2 content.VideoFile) bool { return v1.SizeGb < v2.SizeGb },
 	},
-	{"Resolution",
+	{
+		"Resolution",
 		func(file content.VideoFile) string { return file.Resolution },
 		func(v1, v2 content.VideoFile) bool { return v1.Resolution == v2.Resolution },
 		func(v1, v2 content.VideoFile) bool {
 			return v1.ResolutionW*v1.ResolutionH > v2.ResolutionW*v2.ResolutionH
 		},
 	},
-	{"Codec",
+	{
+		"Codec",
 		func(file content.VideoFile) string { return file.VideoStream.CodecName },
 		func(v1, v2 content.VideoFile) bool { return v1.VideoStream.CodecName == v2.VideoStream.CodecName },
 		func(v1, v2 content.VideoFile) bool { return v1.VideoStream.CodecName > v2.VideoStream.CodecName },
 	},
-	{"Profile",
+	{
+		"Profile",
 		func(file content.VideoFile) string { return file.VideoStream.Profile },
 		func(v1, v2 content.VideoFile) bool { return v1.VideoStream.Profile == v2.VideoStream.Profile },
 		func(v1, v2 content.VideoFile) bool { return v1.VideoStream.Profile > v2.VideoStream.Profile },
 	},
-	{"Duration",
+	{
+		"Duration",
 		func(file content.VideoFile) string { return fmt.Sprintf("%0.2f", file.Duration) },
 		func(v1, v2 content.VideoFile) bool { return v1.Duration == v2.Duration },
 		func(v1, v2 content.VideoFile) bool { return v1.Duration > v2.Duration },
 	},
-	{"Bitrate",
+	{
+		"Bitrate",
 		func(file content.VideoFile) string { return strconv.Itoa(file.BitRate) },
 		func(v1, v2 content.VideoFile) bool { return v1.BitRate == v2.BitRate },
 		func(v1, v2 content.VideoFile) bool { return v1.BitRate > v2.BitRate },
 	},
 }
 
-// todo change to accept array of videos and compare them
-func RenderVideoComparisonTable(srcVideo content.VideoFile, dstVideos []content.VideoFile, indent int) {
-
-	if len(dstVideos) > 1 {
-		panic("multiple destination videos not supported yet")
-	}
-	dstVideo := dstVideos[0] // we dont' support multiple video files yet
-
-	same := srcVideo.IsBasicallyTheSameTo(dstVideo)
-
+func RenderVideoComparisonTable(indent int, srcVideo content.VideoFile, dstVideos []content.VideoFile, srcIndex int) {
 	var buf bytes.Buffer
 	t := table.NewWriter()
 	t.SetOutputMirror(&buf)
 	t.SetStyle(tablestyle)
-	if same {
-		t.AppendHeader(table.Row{"", c.Sprintf("<green>Source</>"), c.Sprintf("<green>Destination</>")})
-	} else {
-		t.AppendHeader(table.Row{"", c.Sprintf("<white>Source</>"), c.Sprintf("<white>Destination</>")})
+
+	same := true
+	for _, dstVideo := range dstVideos {
+		same = same && srcVideo.IsBasicallyTheSameTo(dstVideo)
 	}
+
+	srcHeader := "Source"
+	if srcIndex > 0 {
+		srcHeader = fmt.Sprintf("Source %d", srcIndex)
+	}
+	header := table.Row{"", srcHeader}
+	for i := range dstVideos {
+		header = append(header, fmt.Sprintf("Destination %d", i+1))
+	}
+
+	t.AppendHeader(header, table.RowConfig{AutoMerge: true})
 	t.AppendSeparator()
 
-	for _, row := range rows {
-		n := c.Sprintf("<darkGray>" + row.Name + "</>")
-		if row.Equal(srcVideo, dstVideo) {
-			t.AppendRow(table.Row{n, c.Sprintf("<lightBlue>" + row.Value(srcVideo) + "</>"), c.Sprintf("<lightBlue>" + row.Value(dstVideo) + "</>")})
-		} else if row.BetterThan(srcVideo, dstVideo) {
-			t.AppendRow(table.Row{n, c.Sprintf("<green>" + row.Value(srcVideo) + "</>"), c.Sprintf("<red>" + row.Value(dstVideo) + "</>")})
-		} else {
-			t.AppendRow(table.Row{n, c.Sprintf("<red>" + row.Value(srcVideo) + "</>"), c.Sprintf("<green>" + row.Value(dstVideo) + "</>")})
-		}
+	type BestCheck struct {
+		File  content.VideoFile
+		Index int
 	}
 
-	// audio rows
+	for _, row := range rows {
+		best := BestCheck{File: srcVideo, Index: -1}
+		for i, dstVideo := range dstVideos {
+			if row.BetterThan(dstVideo, best.File) {
+				best = BestCheck{File: dstVideo, Index: i}
+			}
+		}
+
+		colourize := func(v content.VideoFile, vIndex int) string {
+			s := row.Value(v)
+			if same {
+				return c.Sprintf("<lightBlue>%s</>", s)
+			}
+			if best.Index == vIndex {
+				return c.Sprintf("<green>%s</>", s)
+			}
+			return c.Sprintf("<lightRed>%s</>", s)
+		}
+
+		r := table.Row{c.Sprintf("<darkGray>%s</>", row.Name), colourize(srcVideo, -1)}
+		for i, dstVideo := range dstVideos {
+			r = append(r, colourize(dstVideo, i))
+		}
+		t.AppendRow(r)
+	}
+
+	// Handle audio streams comparison
 	maxAudioStreams := len(srcVideo.AudioStreams)
-	if len(dstVideos[0].AudioStreams) > maxAudioStreams {
-		maxAudioStreams = len(dstVideos[0].AudioStreams)
+	for _, dstVideo := range dstVideos {
+		if len(dstVideo.AudioStreams) > maxAudioStreams {
+			maxAudioStreams = len(dstVideo.AudioStreams)
+		}
 	}
 
 	srcAudioSorted := srcVideo.AudioStreamsSortedByLanguage()
-	dstAudioSorted := dstVideo.AudioStreamsSortedByLanguage()
-
-	for i := 0; i < maxAudioStreams; i++ {
-		var srcStream, dstStream string
-		if i < len(srcAudioSorted) {
-			srcStream = fmt.Sprintf("%s %s (%s)", srcAudioSorted[i].CodecName, srcAudioSorted[i].ChannelLayout, srcAudioSorted[i].Language)
-		}
-		if i < len(dstAudioSorted) {
-			dstStream = fmt.Sprintf("%s %s (%s)", dstAudioSorted[i].CodecName, dstAudioSorted[i].ChannelLayout, dstAudioSorted[i].Language)
-		}
-
-		srcColour := "lightBlue"
-		dstColour := "lightBlue"
-
-		if i < len(srcAudioSorted) && i < len(dstAudioSorted) {
-			if srcAudioSorted[i].Language == dstAudioSorted[i].Language {
-				if srcAudioSorted[i].CodecName == dstAudioSorted[i].CodecName {
-					srcColour = "lightBlue"
-					dstColour = "lightBlue"
-				} else {
-					srcColour = "magenta"
-					dstColour = "magenta"
-				}
-			} else {
-				if srcAudioSorted[i].Language == "eng" {
-					srcColour = "green"
-					dstColour = "red"
-				} else {
-					srcColour = "magenta"
-					dstColour = "magenta"
-				}
-			}
-		} else if i < len(srcAudioSorted) {
-			srcColour = "red"
-		} else if i < len(dstAudioSorted) {
-			dstColour = "green"
-		}
-
-		t.AppendRow(table.Row{
-			c.Sprintf("<darkGray>Audio %d</>", i+1),
-			c.Sprintf("<" + srcColour + ">" + srcStream + "</>"),
-			c.Sprintf("<" + dstColour + ">" + dstStream + "</>"),
-		})
+	dstAudioSorted := make([][]content.FFProbeStreamAudio, len(dstVideos))
+	for i, dstVideo := range dstVideos {
+		dstAudioSorted[i] = dstVideo.AudioStreamsSortedByLanguage()
 	}
 
-	// Handle subtitle streams
+	for i := 0; i < maxAudioStreams; i++ {
+		var srcStream *content.FFProbeStreamAudio
+		if i < len(srcAudioSorted) {
+			srcStream = &srcAudioSorted[i]
+		}
+
+		dstStreams := make([]*content.FFProbeStreamAudio, len(dstVideos))
+		for j, sorted := range dstAudioSorted {
+			if i < len(sorted) {
+				dstStreams[j] = &sorted[i]
+			}
+		}
+
+		bestStreamIndex := -1 // -1 for src
+		if srcStream != nil {
+			for j, dstStream := range dstStreams {
+				if dstStream != nil {
+					// simple more channels is better
+					if dstStream.Channels > srcStream.Channels {
+						bestStreamIndex = j
+					}
+				}
+			}
+		} else {
+			// src stream is nil, find first non-nil dst stream
+			for j, dstStream := range dstStreams {
+				if dstStream != nil {
+					bestStreamIndex = j
+					break
+				}
+			}
+		}
+
+		colourize := func(stream *content.FFProbeStreamAudio, streamIndex int) string {
+			if stream == nil {
+				return ""
+			}
+
+			s := fmt.Sprintf("%s %s (%s)", stream.CodecName, stream.ChannelLayout, stream.Language)
+			if same {
+				return c.Sprintf("<lightBlue>%s</>", s)
+			}
+			if stream.Language != "eng" {
+				return c.Sprintf("<magenta>%s</>", s)
+			}
+			if bestStreamIndex == streamIndex {
+				return c.Sprintf("<green>%s</>", s)
+			}
+			return c.Sprintf("<lightRed>%s</>", s)
+		}
+
+		r := table.Row{c.Sprintf("<darkGray>Audio %d</>", i+1), colourize(srcStream, -1)}
+		for j, dstStream := range dstStreams {
+			r = append(r, colourize(dstStream, j))
+		}
+		t.AppendRow(r)
+	}
+
+	// Handle subtitle streams comparison
 	maxSubtitleStreams := len(srcVideo.Subtitles)
-	if len(dstVideo.Subtitles) > maxSubtitleStreams {
-		maxSubtitleStreams = len(dstVideo.Subtitles)
+	for _, dstVideo := range dstVideos {
+		if len(dstVideo.Subtitles) > maxSubtitleStreams {
+			maxSubtitleStreams = len(dstVideo.Subtitles)
+		}
 	}
 
 	srcSubtitles := srcVideo.SubtitlesSortedByLanguage()
-	dstSubtitles := dstVideo.SubtitlesSortedByLanguage()
+	dstSubtitlesSorted := make([][]content.FFProbeStreamSubtitle, len(dstVideos))
+	for i, dstVideo := range dstVideos {
+		dstSubtitlesSorted[i] = dstVideo.SubtitlesSortedByLanguage()
+	}
 
 	for i := 0; i < maxSubtitleStreams; i++ {
-		var srcStream, dstStream string
-
+		var srcStream *content.FFProbeStreamSubtitle
 		if i < len(srcSubtitles) {
-			srcStream = fmt.Sprintf("%s (%s)", srcSubtitles[i].Language, srcSubtitles[i].CodecName)
-		}
-		if i < len(dstSubtitles) {
-			dstStream = fmt.Sprintf("%s (%s)", dstSubtitles[i].Language, dstSubtitles[i].CodecName)
+			srcStream = &srcSubtitles[i]
 		}
 
-		srcColour := "lightBlue"
-		dstColour := "lightBlue"
-
-		if i < len(srcSubtitles) && i < len(dstSubtitles) {
-			if srcSubtitles[i].Language == dstSubtitles[i].Language {
-				srcColour = "lightBlue"
-				dstColour = "lightBlue"
-			} else {
-				if srcSubtitles[i].Language == "eng" {
-					srcColour = "green"
-					dstColour = "red"
-				} else {
-					srcColour = "magenta"
-					dstColour = "magenta"
-				}
+		dstStreams := make([]*content.FFProbeStreamSubtitle, len(dstVideos))
+		for j, sorted := range dstSubtitlesSorted {
+			if i < len(sorted) {
+				dstStreams[j] = &sorted[i]
 			}
-		} else if i < len(srcSubtitles) {
-			srcColour = "red"
-		} else if i < len(dstSubtitles) {
-			dstColour = "green"
 		}
 
-		t.AppendRow(table.Row{
-			c.Sprintf("<darkGray>Subtitle %d</>", i+1),
-			c.Sprintf("<" + srcColour + ">" + srcStream + "</>"),
-			c.Sprintf("<" + dstColour + ">" + dstStream + "</>"),
-		})
+		colourize := func(stream *content.FFProbeStreamSubtitle) string {
+			if stream == nil {
+				return ""
+			}
+			s := fmt.Sprintf("%s (%s)", stream.Language, stream.CodecName)
+			if same {
+				return c.Sprintf("<lightBlue>%s</>", s)
+			}
+			if stream.Language == "eng" {
+				return c.Sprintf("<green>%s</>", s)
+			}
+			return c.Sprintf("<magenta>%s</>", s)
+		}
+
+		r := table.Row{c.Sprintf("<darkGray>Subtitle %d</>", i+1), colourize(srcStream)}
+		for _, dstStream := range dstStreams {
+			r = append(r, colourize(dstStream))
+		}
+		t.AppendRow(r)
 	}
 
 	t.Render()
@@ -216,5 +265,5 @@ func RenderVideoComparisonTable(srcVideo content.VideoFile, dstVideos []content.
 	// trim trailing newline and indent
 	output := buf.String()
 	output = output[:len(output)-1]
-	ktio.IndentWriter{W: os.Stdout, Indent: strings.Repeat(" ", indent)}.Write([]byte(output))
+	_, _ = ktio.IndentWriter{W: os.Stdout, Indent: strings.Repeat(" ", indent)}.Write([]byte(output))
 }

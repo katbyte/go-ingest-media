@@ -52,7 +52,9 @@ func GetKey() (*rune, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer keyboard.Close()
+	defer func() {
+		_ = keyboard.Close()
+	}()
 
 	// Setting up channel to listen for OS signals
 	sigChan := make(chan os.Signal, 1)

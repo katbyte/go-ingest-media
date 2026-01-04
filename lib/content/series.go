@@ -32,7 +32,6 @@ func (l Library) SeriesFor(folder string) (*Series, error) {
 
 // only called if destination folder exists
 func (s *Series) LoadContentDetails() error {
-
 	var err error
 	s.SrcSeasons, err = GetSeasons(s.SrcPath())
 	if err != nil {

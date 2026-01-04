@@ -3,6 +3,7 @@ package content
 import (
 	"fmt"
 
+	c "github.com/gookit/color"
 	"github.com/katbyte/go-ingest-media/lib/ktio"
 )
 
@@ -12,7 +13,7 @@ type Movie struct {
 	Content
 
 	// video details
-	SrcVideo  VideoFile
+	SrcVideos []VideoFile
 	DstVideos []VideoFile
 }
 
@@ -29,15 +30,12 @@ func (l Library) MovieFor(folder string) (*Movie, error) {
 }
 
 func (m *Movie) LoadVideoInfo() error {
-	vs, err := VideosInPath(m.SrcPath())
+	var err error
+
+	m.SrcVideos, err = VideosInPath(m.SrcPath())
 	if err != nil {
 		return fmt.Errorf("error loading source video: %w", err)
 	}
-
-	if len(vs) != 1 {
-		return fmt.Errorf("expected 1 src video file, found %d", len(vs))
-	}
-	m.SrcVideo = vs[0]
 
 	m.DstVideos, err = VideosInPath(m.DstPath())
 	if err != nil {
@@ -47,39 +45,26 @@ func (m *Movie) LoadVideoInfo() error {
 	return nil
 }
 
-func (m *Movie) MoveFiles(confirm bool, indent int) error {
+func (m *Movie) MoveFiles(srcVideo VideoFile, confirm bool, indent int) error {
+	// delete destination video files
+	for _, v := range m.DstVideos {
+		_ = ktio.RunCommand(indent, confirm, "rm", "-v", v.Path)
+	}
 
-	// delete video files in destination
-	files, err := ktio.ListFiles(m.DstPath())
+	// move source video file
+	err := ktio.RunCommand(indent, confirm, "mv", "-v", srcVideo.Path, m.DstPath()+"/")
 	if err != nil {
-		return fmt.Errorf("error listing destination files: %w", err)
+		return err
 	}
 
-	for _, f := range files {
-		if IsVideoFile(f) {
-			err := ktio.RunCommand(indent, confirm, "rm", "-v", f)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	// move each file/folder in source path
-	files, err = ktio.ListFiles(m.SrcPath())
+	// delete source folder if empty
+	empty, err := ktio.FolderEmpty(m.SrcPath())
 	if err != nil {
-		return fmt.Errorf("error listing destination files: %w", err)
+		c.Printf(" <red>ERROR:</> checking if empty%s\n", err)
+	}
+	if empty {
+		_ = ktio.RunCommand(indent, confirm, "rmdir", "-v", m.SrcPath())
 	}
 
-	// move all video files (do we really care about anything else?)
-	for _, f := range files {
-		if IsVideoFile(f) {
-			err := ktio.RunCommand(indent, confirm, "mv", "-v", f, m.DstPath()+"/")
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	// delete source folder via rmdir
-	return ktio.RunCommand(indent, confirm, "rmdir", "-v", m.SrcPath())
+	return nil
 }
