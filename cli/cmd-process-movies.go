@@ -71,7 +71,7 @@ func ProcessMovies(l content.Library) error {
 
 		// if multiple source videos, ask which one to keep
 		if len(m.SrcVideos) > 1 {
-			c.Printf("  <yellow>WARNING</> - multiple source videos\n")
+			c.Printf("  <lightMagenta>WARNING - multiple source videos - WARNING </>\n")
 			headers := []string{}
 			for i := range m.SrcVideos {
 				headers = append(headers, fmt.Sprintf("Source %d", i+1))
