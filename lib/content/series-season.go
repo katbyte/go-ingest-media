@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	c "github.com/gookit/color"
 	"github.com/katbyte/go-ingest-media/lib/ktio"
 )
 
@@ -160,13 +161,18 @@ func (e *Episode) MoveFiles(confirm bool, indent int, dstPath string) error {
 	}
 
 	// movie video file
-	_ = ktio.RunCommand(indent, confirm, "mv", "-v", e.Videos[0].Path, dstPath)
+	// movie video file
+	if err := ktio.RunCommand(indent, confirm, "mv", "-v", e.Videos[0].Path, dstPath); err != nil {
+		c.Printf("   <red>ERROR:</> moving video: %s\n", err)
+	}
 
 	// move all other files
 	for _, file := range e.OtherFiles {
 		// calculate indent from "seasonXepisode -->"
 		fmt.Printf("%s --> ", strings.Repeat(" ", indent-len(strconv.Itoa(e.Season))+1+len(strconv.Itoa(e.Number))))
-		_ = ktio.RunCommand(indent, confirm, "mv", "-v", file, dstPath)
+		if err := ktio.RunCommand(indent, confirm, "mv", "-v", file, dstPath); err != nil {
+			c.Printf("   <red>ERROR:</> moving other file: %s\n", err)
+		}
 	}
 
 	return nil
@@ -174,6 +180,8 @@ func (e *Episode) MoveFiles(confirm bool, indent int, dstPath string) error {
 
 func (e *Episode) DeleteVideoFiles() {
 	for _, v := range e.Videos {
-		_ = ktio.RunCommand(0, false, "rm", "-v", v.Path)
+		if err := ktio.RunCommand(0, false, "rm", "-v", v.Path); err != nil {
+			c.Printf("   <red>ERROR:</> deleting destination video: %s\n", err)
+		}
 	}
 }

@@ -116,7 +116,9 @@ func ProcessSeries(l content.Library) error {
 								c.Printf(" <red>ERROR:</>%s\n", err)
 								continue
 							} else if yes {
-								_ = ktio.RunCommand(indent+10, f.Confirm, "mv", "-v", file, ds.Path+"/")
+								if err := ktio.RunCommand(indent+10, f.Confirm, "mv", "-v", file, ds.Path+"/"); err != nil {
+									c.Printf("          <red>ERROR:</> moving file: %s\n", err)
+								}
 							} else {
 								// add to deletes
 								fmt.Println()
@@ -156,7 +158,11 @@ func ProcessSeries(l content.Library) error {
 					c.Printf("%s     <yellow>%dx%d</> --> <darkGray>%s</>\n", intentStr, seasonNum, episodeNum, ds.Path)
 
 					// output video comparison table
-					RenderVideoComparisonTable(2, srcVideo, de.Videos, -1)
+					headers := []string{"Source"}
+					for i := range de.Videos {
+						headers = append(headers, fmt.Sprintf("Dest %d", i+1))
+					}
+					RenderVideoComparisonTable(2, headers, append([]content.VideoFile{srcVideo}, de.Videos...))
 
 					var s rune
 					if moveAll {
@@ -182,13 +188,19 @@ func ProcessSeries(l content.Library) error {
 						// delete de files
 						fmt.Println()
 						for _, v := range de.Videos {
-							_ = ktio.RunCommand(4, f.Confirm, "rm", "-v", v.Path)
+							if err := ktio.RunCommand(4, f.Confirm, "rm", "-v", v.Path); err != nil {
+								c.Printf("    <red>ERROR:</> deleting destination video: %s\n", err)
+							}
 						}
 
 						// move all se files
-						_ = ktio.RunCommand(4, f.Confirm, "mv", "-v", srcVideo.Path, ds.Path+"/")
+						if err := ktio.RunCommand(4, f.Confirm, "mv", "-v", srcVideo.Path, ds.Path+"/"); err != nil {
+							c.Printf("    <red>ERROR:</> moving source video: %s\n", err)
+						}
 						for _, file := range se.OtherFiles {
-							_ = ktio.RunCommand(4, f.Confirm, "mv", "-v", file, ds.Path+"/")
+							if err := ktio.RunCommand(4, f.Confirm, "mv", "-v", file, ds.Path+"/"); err != nil {
+								c.Printf("    <red>ERROR:</> moving other file: %s\n", err)
+							}
 						}
 
 					case 'D':
@@ -240,7 +252,9 @@ func ProcessSeries(l content.Library) error {
 		}
 		if empty {
 			c.Printf("%s   <green>EMPTY</> - removing directory: ", intentStr)
-			_ = ktio.RunCommand(indent+4, f.Confirm, "rmdir", "-v", s.SrcPath())
+			if err := ktio.RunCommand(indent+4, f.Confirm, "rmdir", "-v", s.SrcPath()); err != nil {
+				c.Printf("    <red>ERROR:</> deleting source folder: %s\n", err)
+			}
 			fmt.Println()
 		}
 	}
@@ -261,7 +275,9 @@ func ProcessSeries(l content.Library) error {
 
 		if y {
 			for _, path := range pathsToDelete {
-				_ = ktio.RunCommand(4, f.Confirm, "rm", "-rfv", path)
+				if err := ktio.RunCommand(4, f.Confirm, "rm", "-rfv", path); err != nil {
+					c.Printf("    <red>ERROR:</> deleting path: %s\n", err)
+				}
 			}
 		}
 	}
@@ -288,7 +304,9 @@ func ProcessSeries(l content.Library) error {
 				continue
 			}
 			if empty {
-				_ = ktio.RunCommand(4, f.Confirm, "rmdir", "-v", ss.Path)
+				if err := ktio.RunCommand(4, f.Confirm, "rmdir", "-v", ss.Path); err != nil {
+					c.Printf("    <red>ERROR:</> deleting season folder: %s\n", err)
+				}
 			}
 
 		}
@@ -299,7 +317,9 @@ func ProcessSeries(l content.Library) error {
 			continue
 		}
 		if empty {
-			_ = ktio.RunCommand(4, f.Confirm, "rmdir", "-v", s.SrcPath())
+			if err := ktio.RunCommand(4, f.Confirm, "rmdir", "-v", s.SrcPath()); err != nil {
+				c.Printf("    <red>ERROR:</> deleting source folder: %s\n", err)
+			}
 			fmt.Println()
 		}
 	}
@@ -334,7 +354,9 @@ func ProcessSpecialFiles(indent int, s content.Series, folder string, files []st
 	}
 	if empty {
 		c.Printf("%s   <green>EMPTY</> - removing directory: ", strings.Repeat(" ", indent))
-		_ = ktio.RunCommand(indent+4, f.Confirm, "rmdir", "-v", dstPath)
+		if err := ktio.RunCommand(indent+4, f.Confirm, "rmdir", "-v", dstPath); err != nil {
+			c.Printf("    <red>ERROR:</> deleting empty destination: %s\n", err)
+		}
 		fmt.Println()
 	}
 

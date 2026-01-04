@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -86,27 +87,27 @@ var rows = []TableRow{
 	},
 }
 
-func RenderVideoComparisonTable(indent int, srcVideo content.VideoFile, dstVideos []content.VideoFile, srcIndex int) {
+func RenderVideoComparisonTable(indent int, headers []string, videos []content.VideoFile) {
 	var buf bytes.Buffer
 	t := table.NewWriter()
 	t.SetOutputMirror(&buf)
 	t.SetStyle(tablestyle)
 
 	same := true
-	for _, dstVideo := range dstVideos {
-		same = same && srcVideo.IsBasicallyTheSameTo(dstVideo)
+	if len(videos) > 1 {
+		for _, v := range videos[1:] {
+			same = same && videos[0].IsBasicallyTheSameTo(v)
+		}
+	} else {
+		same = false
 	}
 
-	srcHeader := "Source"
-	if srcIndex > 0 {
-		srcHeader = fmt.Sprintf("Source %d", srcIndex)
-	}
-	header := table.Row{"", srcHeader}
-	for i := range dstVideos {
-		header = append(header, fmt.Sprintf("Destination %d", i+1))
+	headerRow := table.Row{"", headers[0]}
+	for _, h := range headers[1:] {
+		headerRow = append(headerRow, h)
 	}
 
-	t.AppendHeader(header, table.RowConfig{AutoMerge: true})
+	t.AppendHeader(headerRow, table.RowConfig{AutoMerge: true})
 	t.AppendSeparator()
 
 	type BestCheck struct {
@@ -115,10 +116,10 @@ func RenderVideoComparisonTable(indent int, srcVideo content.VideoFile, dstVideo
 	}
 
 	for _, row := range rows {
-		best := BestCheck{File: srcVideo, Index: -1}
-		for i, dstVideo := range dstVideos {
-			if row.BetterThan(dstVideo, best.File) {
-				best = BestCheck{File: dstVideo, Index: i}
+		best := BestCheck{File: videos[0], Index: 0}
+		for i, v := range videos {
+			if row.BetterThan(v, best.File) {
+				best = BestCheck{File: v, Index: i}
 			}
 		}
 
@@ -127,62 +128,80 @@ func RenderVideoComparisonTable(indent int, srcVideo content.VideoFile, dstVideo
 			if same {
 				return c.Sprintf("<lightBlue>%s</>", s)
 			}
+
+			if vIndex != 0 {
+				if row.Name == "Duration" {
+					diff := math.Abs(v.Duration - videos[0].Duration)
+					if diff < 5 {
+						return c.Sprintf("<lightBlue>%s</>", s)
+					}
+					if diff >= 5 && diff < 10 {
+						return c.Sprintf("<blue>%s</>", s)
+					}
+				}
+
+				if row.Name == "Bitrate" {
+					srcBitrate := float64(videos[0].BitRate)
+					if srcBitrate > 0 {
+						diff := math.Abs(float64(v.BitRate)-srcBitrate) / srcBitrate
+						if diff < 0.01 {
+							return c.Sprintf("<blue>%s</>", s)
+						}
+					}
+				}
+			}
+
 			if best.Index == vIndex {
 				return c.Sprintf("<green>%s</>", s)
 			}
 			return c.Sprintf("<lightRed>%s</>", s)
 		}
 
-		r := table.Row{c.Sprintf("<darkGray>%s</>", row.Name), colourize(srcVideo, -1)}
-		for i, dstVideo := range dstVideos {
-			r = append(r, colourize(dstVideo, i))
+		r := table.Row{c.Sprintf("<darkGray>%s</>", row.Name)}
+		for i, v := range videos {
+			r = append(r, colourize(v, i))
 		}
 		t.AppendRow(r)
 	}
 
 	// Handle audio streams comparison
-	maxAudioStreams := len(srcVideo.AudioStreams)
-	for _, dstVideo := range dstVideos {
-		if len(dstVideo.AudioStreams) > maxAudioStreams {
-			maxAudioStreams = len(dstVideo.AudioStreams)
+	maxAudioStreams := 0
+	for _, video := range videos {
+		if len(video.AudioStreams) > maxAudioStreams {
+			maxAudioStreams = len(video.AudioStreams)
 		}
 	}
 
-	srcAudioSorted := srcVideo.AudioStreamsSortedByLanguage()
-	dstAudioSorted := make([][]content.FFProbeStreamAudio, len(dstVideos))
-	for i, dstVideo := range dstVideos {
-		dstAudioSorted[i] = dstVideo.AudioStreamsSortedByLanguage()
+	audioSorted := make([][]content.FFProbeStreamAudio, len(videos))
+	for i, video := range videos {
+		audioSorted[i] = video.AudioStreamsSortedByLanguage()
 	}
 
 	for i := 0; i < maxAudioStreams; i++ {
-		var srcStream *content.FFProbeStreamAudio
-		if i < len(srcAudioSorted) {
-			srcStream = &srcAudioSorted[i]
-		}
-
-		dstStreams := make([]*content.FFProbeStreamAudio, len(dstVideos))
-		for j, sorted := range dstAudioSorted {
+		streams := make([]*content.FFProbeStreamAudio, len(videos))
+		for j, sorted := range audioSorted {
 			if i < len(sorted) {
-				dstStreams[j] = &sorted[i]
+				streams[j] = &sorted[i]
 			}
 		}
 
-		bestStreamIndex := -1 // -1 for src
-		if srcStream != nil {
-			for j, dstStream := range dstStreams {
-				if dstStream != nil {
-					// simple more channels is better
-					if dstStream.Channels > srcStream.Channels {
+		bestStreamIndex := -1
+		// Find first non-nil stream to start comparison
+		var firstStream *content.FFProbeStreamAudio
+		for j, stream := range streams {
+			if stream != nil {
+				firstStream = stream
+				bestStreamIndex = j
+				break
+			}
+		}
+
+		if firstStream != nil {
+			for j, stream := range streams {
+				if stream != nil {
+					if stream.Channels > firstStream.Channels {
 						bestStreamIndex = j
 					}
-				}
-			}
-		} else {
-			// src stream is nil, find first non-nil dst stream
-			for j, dstStream := range dstStreams {
-				if dstStream != nil {
-					bestStreamIndex = j
-					break
 				}
 			}
 		}
@@ -205,37 +224,31 @@ func RenderVideoComparisonTable(indent int, srcVideo content.VideoFile, dstVideo
 			return c.Sprintf("<lightRed>%s</>", s)
 		}
 
-		r := table.Row{c.Sprintf("<darkGray>Audio %d</>", i+1), colourize(srcStream, -1)}
-		for j, dstStream := range dstStreams {
-			r = append(r, colourize(dstStream, j))
+		r := table.Row{c.Sprintf("<darkGray>Audio %d</>", i+1)}
+		for j, stream := range streams {
+			r = append(r, colourize(stream, j))
 		}
 		t.AppendRow(r)
 	}
 
 	// Handle subtitle streams comparison
-	maxSubtitleStreams := len(srcVideo.Subtitles)
-	for _, dstVideo := range dstVideos {
-		if len(dstVideo.Subtitles) > maxSubtitleStreams {
-			maxSubtitleStreams = len(dstVideo.Subtitles)
+	maxSubtitleStreams := 0
+	for _, video := range videos {
+		if len(video.Subtitles) > maxSubtitleStreams {
+			maxSubtitleStreams = len(video.Subtitles)
 		}
 	}
 
-	srcSubtitles := srcVideo.SubtitlesSortedByLanguage()
-	dstSubtitlesSorted := make([][]content.FFProbeStreamSubtitle, len(dstVideos))
-	for i, dstVideo := range dstVideos {
-		dstSubtitlesSorted[i] = dstVideo.SubtitlesSortedByLanguage()
+	subtitlesSorted := make([][]content.FFProbeStreamSubtitle, len(videos))
+	for i, video := range videos {
+		subtitlesSorted[i] = video.SubtitlesSortedByLanguage()
 	}
 
 	for i := 0; i < maxSubtitleStreams; i++ {
-		var srcStream *content.FFProbeStreamSubtitle
-		if i < len(srcSubtitles) {
-			srcStream = &srcSubtitles[i]
-		}
-
-		dstStreams := make([]*content.FFProbeStreamSubtitle, len(dstVideos))
-		for j, sorted := range dstSubtitlesSorted {
+		streams := make([]*content.FFProbeStreamSubtitle, len(videos))
+		for j, sorted := range subtitlesSorted {
 			if i < len(sorted) {
-				dstStreams[j] = &sorted[i]
+				streams[j] = &sorted[i]
 			}
 		}
 
@@ -253,9 +266,9 @@ func RenderVideoComparisonTable(indent int, srcVideo content.VideoFile, dstVideo
 			return c.Sprintf("<magenta>%s</>", s)
 		}
 
-		r := table.Row{c.Sprintf("<darkGray>Subtitle %d</>", i+1), colourize(srcStream)}
-		for _, dstStream := range dstStreams {
-			r = append(r, colourize(dstStream))
+		r := table.Row{c.Sprintf("<darkGray>Subtitle %d</>", i+1)}
+		for _, stream := range streams {
+			r = append(r, colourize(stream))
 		}
 		t.AppendRow(r)
 	}

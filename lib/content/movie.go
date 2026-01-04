@@ -2,6 +2,7 @@ package content
 
 import (
 	"fmt"
+	"path/filepath"
 
 	c "github.com/gookit/color"
 	"github.com/katbyte/go-ingest-media/lib/ktio"
@@ -45,25 +46,47 @@ func (m *Movie) LoadVideoInfo() error {
 	return nil
 }
 
-func (m *Movie) MoveFiles(srcVideo VideoFile, confirm bool, indent int) error {
+func (m *Movie) MoveFiles(confirm bool, indent int) error {
 	// delete destination video files
 	for _, v := range m.DstVideos {
-		_ = ktio.RunCommand(indent, confirm, "rm", "-v", v.Path)
+		if err := ktio.RunCommand(indent, confirm, "rm", "-v", v.Path); err != nil {
+			c.Printf("   <red>ERROR:</> deleting destination video: %s\n", err)
+		}
 	}
 
-	// move source video file
-	err := ktio.RunCommand(indent, confirm, "mv", "-v", srcVideo.Path, m.DstPath()+"/")
+	// move source video files
+	for _, v := range m.SrcVideos {
+		if err := ktio.RunCommand(indent, confirm, "mv", "-v", v.Path, m.DstPath()+"/"); err != nil {
+			return fmt.Errorf("error moving source video: %w", err)
+		}
+	}
+
+	// move all other files in the source folder
+	srcContents, err := ktio.ListFilesAndFolders(m.SrcPath())
 	if err != nil {
-		return err
+		return fmt.Errorf("error listing source content: %w", err)
+	}
+
+	for _, contentPath := range srcContents {
+		// skip nfo files
+		if filepath.Ext(contentPath) == ".nfo" {
+			continue
+		}
+
+		// skip if video file (already moved)
+		if IsVideoFile(contentPath) {
+			continue
+		}
+
+		// move file or folder
+		if err := ktio.RunCommand(indent, confirm, "mv", "-v", contentPath, m.DstPath()+"/"); err != nil {
+			return fmt.Errorf("error moving file or folder: %w", err)
+		}
 	}
 
 	// delete source folder if empty
-	empty, err := ktio.FolderEmpty(m.SrcPath())
-	if err != nil {
-		c.Printf(" <red>ERROR:</> checking if empty%s\n", err)
-	}
-	if empty {
-		_ = ktio.RunCommand(indent, confirm, "rmdir", "-v", m.SrcPath())
+	if err := ktio.DeleteIfEmptyOrOnlyNfo(m.SrcPath(), confirm, indent); err != nil {
+		return fmt.Errorf("error deleting source folder: %w", err)
 	}
 
 	return nil
