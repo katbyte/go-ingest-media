@@ -32,7 +32,7 @@ func ProcessMovies(l content.Library) error {
 	nMovies := len(movies)
 	for _, m := range movies {
 		i++
-		fmt.Printf("")
+		fmt.Println()
 
 		// TODO use go channels to run multiple moves at once/queue them up in the background
 
@@ -183,8 +183,6 @@ func ProcessMovies(l content.Library) error {
 				}
 			}
 			m.DstVideos = newDst
-			fmt.Println()
-
 			fallthrough // no "delete" the source
 		case 'd':
 			// c.Printf(" <darkGray>rm -rf '%s'...</>", m.SrcPath())
