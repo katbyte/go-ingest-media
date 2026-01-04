@@ -1,6 +1,7 @@
 package ktio
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,7 +12,7 @@ func ListFolders(ipath string) ([]string, error) {
 
 	files, err := os.ReadDir(ipath)
 	if err != nil {
-		return nil, fmt.Errorf("error reading the path %v: %v\n", ipath, err)
+		return nil, fmt.Errorf("error reading the path %v: %w\n", ipath, err)
 	}
 
 	for _, file := range files {
@@ -29,7 +30,7 @@ func ListFiles(ipath string) ([]string, error) {
 
 	files, err := os.ReadDir(ipath)
 	if err != nil {
-		return nil, fmt.Errorf("error reading the path %v: %v\n", ipath, err)
+		return nil, fmt.Errorf("error reading the path %v: %w\n", ipath, err)
 	}
 
 	for _, file := range files {
@@ -54,7 +55,7 @@ func PathExists(path string) bool {
 func Move(source, destination string) error {
 	// Check if destination already exists
 	if _, err := os.Stat(destination); !os.IsNotExist(err) {
-		return fmt.Errorf("destination folder already exists")
+		return errors.New("destination folder already exists")
 	}
 
 	// MoveFolder the folder

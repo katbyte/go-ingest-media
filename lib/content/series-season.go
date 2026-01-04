@@ -42,7 +42,7 @@ func GetSeasons(path string) (map[int]Season, error) {
 	doneChan := make(chan bool)
 
 	seasons := make(map[int]Season)
-	var mutex sync.Mutex // Mutex to synchronize access to the seasons map
+	var mutex sync.Mutex // Mutex to synchronise access to the seasons map
 
 	for _, f := range srcFolders {
 		wg.Add(1)
@@ -113,7 +113,7 @@ func (s *Season) LoadEpisodes() error {
 		return fmt.Errorf("error listing source files: %w", err)
 	}
 
-	s.Episodes = make(map[int]Episode) // Initialize the Episodes map
+	s.Episodes = make(map[int]Episode) // Initialise the Episodes map
 
 	episodeRegex := regexp.MustCompile(`.* - (\d+)x(\d+) - .*`)
 

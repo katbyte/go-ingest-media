@@ -2,8 +2,9 @@ package content
 
 import (
 	"fmt"
-	"github.com/katbyte/go-ingest-media/lib/ktio"
 	"path/filepath"
+
+	"github.com/katbyte/go-ingest-media/lib/ktio"
 )
 
 type LibraryType int
@@ -74,12 +75,12 @@ func (l Library) ContentsSource(onContentError func(folder string, err error)) (
 	for _, f := range folders {
 		var c ContentInterface
 
-		if l.Type == LibraryTypeMovies || l.Type == LibraryTypeStandup { // standup is the same for now except a slighty different alt folder
+		switch l.Type {
+		case LibraryTypeMovies, LibraryTypeStandup: // standup is the same for now except a slighty different alt folder
 			c, err = l.MovieFor(f)
-		} else if l.Type == LibraryTypeSeries {
+		case LibraryTypeSeries:
 			c, err = l.SeriesFor(f)
-		} else {
-			return nil, fmt.Errorf("unknown library type: %s", l.Type)
+			return nil, fmt.Errorf("unknown library type: %d", l.Type)
 		}
 		if err != nil {
 			onContentError(f, err)
@@ -136,12 +137,13 @@ func (l Library) ContentsDestination(onContentError func(folder string, err erro
 		for _, f := range folders {
 			var c ContentInterface
 
-			if l.Type == LibraryTypeMovies || l.Type == LibraryTypeStandup { // standup is the same for now except a slighty different alt folder
+			switch l.Type {
+			case LibraryTypeMovies, LibraryTypeStandup: // standup is the same for now except a slighty different alt folder
 				c, err = l.MovieFor(f)
-			} else if l.Type == LibraryTypeSeries {
+			case LibraryTypeSeries:
 				c, err = l.SeriesFor(f)
-			} else {
-				return nil, fmt.Errorf("unknown library type: %s", l.Type)
+			default:
+				return nil, fmt.Errorf("unknown library type: %d", l.Type)
 			}
 			if err != nil {
 				onContentError(f, err)
@@ -165,12 +167,13 @@ func (l Library) ContentsDestination(onContentError func(folder string, err erro
 		for _, lf := range letterFolders {
 			var c ContentInterface
 
-			if l.Type == LibraryTypeMovies || l.Type == LibraryTypeStandup { // standup is the same for now except a slighty different alt folder
+			switch l.Type {
+			case LibraryTypeMovies, LibraryTypeStandup: // standup is the same for now except a slighty different alt folder
 				c, err = l.MovieFor(lf)
-			} else if l.Type == LibraryTypeSeries {
+			case LibraryTypeSeries:
 				c, err = l.SeriesFor(lf)
-			} else {
-				return nil, fmt.Errorf("unknown library type: %s", l.Type)
+			default:
+				return nil, fmt.Errorf("unknown library type: %d", l.Type)
 			}
 			if err != nil {
 				onContentError(lf, err)

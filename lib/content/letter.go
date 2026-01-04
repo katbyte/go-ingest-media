@@ -11,9 +11,7 @@ func GetLetter(folder string) string {
 	s := folder
 
 	for _, prefix := range prefixes {
-		if strings.HasPrefix(s, prefix) {
-			s = strings.TrimPrefix(s, prefix)
-		}
+		s = strings.TrimPrefix(s, prefix)
 	}
 
 	// get first letter

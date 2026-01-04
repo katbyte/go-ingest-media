@@ -2,9 +2,9 @@ package cli
 
 import (
 	"fmt"
+
 	c "github.com/gookit/color"
 	"github.com/katbyte/go-ingest-media/lib/content"
-
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -37,7 +37,7 @@ func ValidateParams(params []string) func(cmd *cobra.Command, args []string) err
 
 func Make(cmdName string) (*cobra.Command, error) {
 
-	//basic import
+	// basic import
 	root := &cobra.Command{
 		Use:           cmdName + " [command]",
 		Short:         cmdName + "move media from source paths into my specific folder structure",
@@ -47,7 +47,7 @@ func Make(cmdName string) (*cobra.Command, error) {
 		RunE:          ProcessLibraries,
 	}
 
-	//check fo duco duplicates between docu folders and movie/tv folders
+	// check fo duco duplicates between docu folders and movie/tv folders
 	root.AddCommand(&cobra.Command{
 		Use:           "docudups",
 		Short:         cmdName + " check for duplicate documentaries/docuseries",

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"strconv"
 
 	c "github.com/gookit/color"
 	"github.com/katbyte/go-ingest-media/lib/content"
@@ -26,18 +27,19 @@ func ProcessLibraries(cmd *cobra.Command, args []string) error {
 		}
 		fmt.Println()
 
-		if l.Type == content.LibraryTypeMovies || l.Type == content.LibraryTypeStandup { // standup is the same except a slighty different alt folder
+		switch l.Type {
+		case content.LibraryTypeMovies, content.LibraryTypeStandup: // standup is the same except a slighty different alt folder
 			err := ProcessMovies(l)
 			if err != nil {
 				return err
 			}
-		} else if l.Type == content.LibraryTypeSeries {
+		case content.LibraryTypeSeries:
 			err := ProcessSeries(l)
 			if err != nil {
 				return err
 			}
-		} else {
-			panic("unknown library type: " + string(l.Type))
+		default:
+			panic("unknown library type: " + strconv.Itoa(int(l.Type)))
 		}
 	}
 

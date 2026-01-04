@@ -1,6 +1,7 @@
 package content
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -130,7 +131,7 @@ func (l Library) AltFolderFor(folder string) (*string, error) {
 		// ie "Jim Jefferies - Freedumb (2016)" -> "Freedumb (2016) - Jim Jefferies"
 		year := yearRegEx.FindString(folder)
 		if year == "" {
-			return nil, fmt.Errorf("no year found in folder name")
+			return nil, errors.New("no year found in folder name")
 		}
 
 		// remove year from folder name
@@ -139,7 +140,7 @@ func (l Library) AltFolderFor(folder string) (*string, error) {
 		// Split the folder name into two parts based on the first dash
 		parts := strings.SplitN(folderWithoutYear, "-", 2)
 		if len(parts) < 2 {
-			return nil, fmt.Errorf("invalid folder name format")
+			return nil, errors.New("invalid folder name format")
 		}
 
 		// Trim any leading or trailing spaces

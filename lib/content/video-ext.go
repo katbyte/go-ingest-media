@@ -15,7 +15,7 @@ var videoExtensions = [...]string{
 	".mov",  // Apple QuickTime Movie, native to Apple devices
 	".m4v",  // M4V, Apple’s video file format often used for TV shows, movies, and music videos from iTunes
 	".wmv",  // Windows Media VideoFile, Microsoft's video encoding solution
-	".webm", // WebM, optimized for the web, supported by HTML5
+	".webm", // WebM, optimised for the web, supported by HTML5
 	".flv",  // Flash VideoFile, used by Adobe Flash Player
 	".rmvb", // RealMedia Variable Bitrate, by RealNetworks
 	".3gp",  // 3GPP, used for video on mobile phones

@@ -1,6 +1,7 @@
 package ktio
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -60,7 +61,7 @@ func GetKey() (*rune, error) {
 	select {
 	case <-sigChan:
 		// Handling Ctrl-C
-		return nil, fmt.Errorf("interrupt received")
+		return nil, errors.New("interrupt received")
 	case key := <-getKeyPress():
 		return key, nil
 	}

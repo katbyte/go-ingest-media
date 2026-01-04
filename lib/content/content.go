@@ -1,6 +1,7 @@
 package content
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -46,9 +47,9 @@ func (l Library) ContentFor(path string) (*Content, error) {
 	regex := regexp.MustCompile(`\((?P<year>\d{4})\)$`)
 	matches := regex.FindStringSubmatch(m.SrcFolder)
 	if len(matches) == 0 {
-		return nil, fmt.Errorf("no year found in folder name")
+		return nil, errors.New("no year found in folder name")
 	} else if len(matches) > 2 {
-		return nil, fmt.Errorf("more than one year found in folder name?")
+		return nil, errors.New("more than one year found in folder name?")
 	}
 
 	// this must be a valid year

@@ -2,15 +2,16 @@ package cli
 
 import (
 	"fmt"
+	"path"
+	"sort"
+
 	c "github.com/gookit/color"
 	"github.com/katbyte/go-ingest-media/lib/content"
 	_ "github.com/mattn/go-sqlite3"
-	"path"
-	"sort"
 )
 
 func DocuDupsMovies(docuLibrary, movieLibrary content.Library) error {
-	//f := GetFlags()
+	// f := GetFlags()make
 
 	docus, err := docuLibrary.MoviesSource(func(f string, err error) {
 		c.Printf("  %s --> <red>ERROR:</>%s</>\n", path.Base(f), err)
@@ -35,7 +36,7 @@ func DocuDupsMovies(docuLibrary, movieLibrary content.Library) error {
 	for _, d := range docus {
 		for _, m := range movies {
 			if d.DstFolder == m.DstFolder {
-				//found a match,
+				// found a match,
 				fmt.Println("Match found: ", d.DstFolder)
 			}
 		}

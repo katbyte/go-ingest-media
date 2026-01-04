@@ -4,3 +4,4 @@ go-ingest-media
 *.sqlite3
 *.csv
 graphs
+.aider*
