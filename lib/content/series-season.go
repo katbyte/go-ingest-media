@@ -38,7 +38,7 @@ func GetSeasons(path string) (map[int]Season, error) {
 	}
 
 	var wg sync.WaitGroup
-	errorChan := make(chan error)
+	errorChan := make(chan error, len(srcFolders))
 	doneChan := make(chan bool)
 
 	seasons := make(map[int]Season)

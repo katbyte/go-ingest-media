@@ -7,9 +7,39 @@ import (
 	"os/signal"
 
 	"github.com/eiannone/keyboard"
+	"golang.org/x/sys/unix"
 )
 
+func DiscardBufferedInput() {
+	if err := keyboard.Open(); err != nil {
+		return
+	}
+	defer func() {
+		_ = keyboard.Close()
+	}()
+
+	fd := int(os.Stdin.Fd())
+	// Set non-blocking
+	if err := unix.SetNonblock(fd, true); err != nil {
+		return
+	}
+	defer func() {
+		_ = unix.SetNonblock(fd, false)
+	}()
+
+	// Read and discard
+	buf := make([]byte, 1024)
+	for {
+		// We use unix.Read directly to avoid os.File's potential buffering/poller interference
+		n, err := unix.Read(fd, buf)
+		if n <= 0 || err != nil {
+			break
+		}
+	}
+}
+
 func Confirm() (bool, error) {
+	DiscardBufferedInput()
 	for {
 		char, err := GetKey()
 		if err != nil {
@@ -33,6 +63,7 @@ func GetSelection(options ...rune) (rune, error) {
 		optionMap[option] = true
 	}
 
+	DiscardBufferedInput()
 	for {
 		selected, err := GetKey()
 		if err != nil {
@@ -59,6 +90,7 @@ func GetKey() (*rune, error) {
 	// Setting up channel to listen for OS signals
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt)
+	defer signal.Stop(sigChan)
 
 	select {
 	case <-sigChan:

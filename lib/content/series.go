@@ -2,6 +2,7 @@ package content
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/katbyte/go-ingest-media/lib/ktio"
 )
@@ -32,17 +33,41 @@ func (l Library) SeriesFor(folder string) (*Series, error) {
 
 // only called if destination folder exists
 func (s *Series) LoadContentDetails() error {
+	var wg sync.WaitGroup
+	errTypes := make(chan error, 2)
+
+	wg.Add(2)
+
+	// Load source seasons
+	go func() {
+		defer wg.Done()
+		var err error
+		s.SrcSeasons, err = GetSeasons(s.SrcPath())
+		if err != nil {
+			errTypes <- fmt.Errorf("error loading source seasons: %w", err)
+		}
+	}()
+
+	// Load destination seasons
+	go func() {
+		defer wg.Done()
+		var err error
+		s.DstSeasons, err = GetSeasons(s.DstPath())
+		if err != nil {
+			errTypes <- fmt.Errorf("error loading destination seasons: %w", err)
+		}
+	}()
+
+	wg.Wait()
+	close(errTypes)
+
+	for err := range errTypes {
+		if err != nil {
+			return err
+		}
+	}
+
 	var err error
-	s.SrcSeasons, err = GetSeasons(s.SrcPath())
-	if err != nil {
-		return fmt.Errorf("error loading source seasons: %w", err)
-	}
-
-	s.DstSeasons, err = GetSeasons(s.DstPath())
-	if err != nil {
-		return fmt.Errorf("error loading destination seasons: %w", err)
-	}
-
 	if exists := ktio.PathExists(s.SrcPath() + "/extras"); exists {
 		s.ExtraFiles, err = ktio.ListFiles(s.SrcPath() + "/extras")
 		if err != nil {
