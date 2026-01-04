@@ -129,29 +129,27 @@ func RenderVideoComparisonTable(indent int, headers []string, videos []content.V
 				return c.Sprintf("<lightBlue>%s</>", s)
 			}
 
-			if vIndex != 0 {
-				if row.Name == "Duration" {
-					diff := math.Abs(v.Duration - videos[0].Duration)
-					if diff < 5 {
-						return c.Sprintf("<lightBlue>%s</>", s)
-					}
-					if diff >= 5 && diff < 10 {
-						return c.Sprintf("<blue>%s</>", s)
-					}
+			if row.Name == "Duration" {
+				diff := math.Abs(v.Duration - videos[0].Duration)
+				if diff < 5 {
+					return c.Sprintf("<lightBlue>%s</>", s)
 				}
+				if diff >= 5 && diff < 10 {
+					return c.Sprintf("<blue>%s</>", s)
+				}
+			}
 
-				if row.Name == "Bitrate" {
-					srcBitrate := float64(videos[0].BitRate)
-					if srcBitrate > 0 {
-						diff := math.Abs(float64(v.BitRate)-srcBitrate) / srcBitrate
-						if diff < 0.01 {
-							return c.Sprintf("<blue>%s</>", s)
-						}
+			if row.Name == "Bitrate" {
+				srcBitrate := float64(videos[0].BitRate)
+				if srcBitrate > 0 {
+					diff := math.Abs(float64(v.BitRate)-srcBitrate) / srcBitrate
+					if diff < 0.01 {
+						return c.Sprintf("<blue>%s</>", s)
 					}
 				}
 			}
 
-			if best.Index == vIndex {
+			if best.Index == vIndex || row.Equal(v, best.File) {
 				return c.Sprintf("<green>%s</>", s)
 			}
 			return c.Sprintf("<lightRed>%s</>", s)

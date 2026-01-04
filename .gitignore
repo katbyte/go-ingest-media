@@ -5,3 +5,4 @@ go-ingest-media
 *.csv
 graphs
 .aider*
+.smbdelete*

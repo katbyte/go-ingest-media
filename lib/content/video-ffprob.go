@@ -109,7 +109,7 @@ type FFProbeStreamVideo struct {
 func (output *FFProbeOutput) VideoStreams() ([]FFProbeStreamVideo, error) {
 	var videoStreams []FFProbeStreamVideo
 	for _, s := range output.Streams {
-		if s.CodecType == "video" && s.Disposition["attached_pic"] != 1 {
+		if s.CodecType == "video" && s.Disposition["attached_pic"] != 1 && s.CodecName != "mjpeg" && s.CodecName != "png" && s.CodecName != "jpeg" && s.CodecName != "jpg" {
 			vs := FFProbeStreamVideo{
 				Index:              s.Index,
 				CodecName:          s.CodecName,
