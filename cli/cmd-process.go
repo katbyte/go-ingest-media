@@ -12,9 +12,7 @@ import (
 
 func ProcessLibraries(cmd *cobra.Command, args []string) error {
 	f := GetFlags()
-
 	for _, l := range content.GetLibraries(f.BaseSrcPath, f.BaseDstPath) {
-
 		c.Printf("%s/<white>%s</> --> %s/<lightBlue>%s</> ", f.BaseSrcPath, l.SrcFolder, f.BaseDstPath, l.DstFolder)
 		if l.Type == content.LibraryTypeMovies {
 			c.Printf("<cyan>(movies)</> ")
@@ -28,7 +26,7 @@ func ProcessLibraries(cmd *cobra.Command, args []string) error {
 		fmt.Println()
 
 		switch l.Type {
-		case content.LibraryTypeMovies, content.LibraryTypeStandup: // standup is the same except a slighty different alt folder
+		case content.LibraryTypeMovies, content.LibraryTypeStandup: // standup is the same except a slightly different alt folder
 			err := ProcessMovies(l)
 			if err != nil {
 				return err
@@ -38,6 +36,8 @@ func ProcessLibraries(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
+		case content.LibraryTypeUnknown:
+			fallthrough
 		default:
 			panic("unknown library type: " + strconv.Itoa(int(l.Type)))
 		}

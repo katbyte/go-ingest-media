@@ -65,21 +65,24 @@ func GetLibrariesMap(srcPath, dstPath string) map[string]Library {
 }
 
 func (l Library) ContentsSource(onContentError func(folder string, err error)) ([]ContentInterface, error) {
-	var contents []ContentInterface
-
 	folders, err := ktio.ListFolders(l.SrcPath)
 	if err != nil {
 		return nil, fmt.Errorf("error listing content folders: %w", err)
 	}
 
+	contents := make([]ContentInterface, 0, len(folders))
+
 	for _, f := range folders {
 		var c ContentInterface
 
 		switch l.Type {
-		case LibraryTypeMovies, LibraryTypeStandup: // standup is the same for now except a slighty different alt folder
+		case LibraryTypeMovies, LibraryTypeStandup: // standup is the same for now except a slightly different alt folder
 			c, err = l.MovieFor(f)
 		case LibraryTypeSeries:
 			c, err = l.SeriesFor(f)
+		case LibraryTypeUnknown:
+			fallthrough
+		default:
 			return nil, fmt.Errorf("unknown library type: %d", l.Type)
 		}
 		if err != nil {
@@ -94,12 +97,12 @@ func (l Library) ContentsSource(onContentError func(folder string, err error)) (
 }
 
 func (l Library) MoviesSource(onContentError func(folder string, err error)) ([]Movie, error) {
-	var movies []Movie
-
 	contents, err := l.ContentsSource(onContentError)
 	if err != nil {
 		return nil, fmt.Errorf("error getting movies: %w", err)
 	}
+
+	movies := make([]Movie, 0, len(contents))
 
 	for _, c := range contents {
 		m := *c.(*Movie)
@@ -110,12 +113,12 @@ func (l Library) MoviesSource(onContentError func(folder string, err error)) ([]
 }
 
 func (l Library) SeriesSource(onContentError func(folder string, err error)) ([]Series, error) {
-	var movies []Series
-
 	contents, err := l.ContentsSource(onContentError)
 	if err != nil {
 		return nil, fmt.Errorf("error getting movies: %w", err)
 	}
+
+	movies := make([]Series, 0, len(contents))
 
 	for _, c := range contents {
 		m := *c.(*Series)
@@ -138,10 +141,12 @@ func (l Library) ContentsDestination(onContentError func(folder string, err erro
 			var c ContentInterface
 
 			switch l.Type {
-			case LibraryTypeMovies, LibraryTypeStandup: // standup is the same for now except a slighty different alt folder
+			case LibraryTypeMovies, LibraryTypeStandup: // standup is the same for now except a slightly different alt folder
 				c, err = l.MovieFor(f)
 			case LibraryTypeSeries:
 				c, err = l.SeriesFor(f)
+			case LibraryTypeUnknown:
+				fallthrough
 			default:
 				return nil, fmt.Errorf("unknown library type: %d", l.Type)
 			}
@@ -168,10 +173,12 @@ func (l Library) ContentsDestination(onContentError func(folder string, err erro
 			var c ContentInterface
 
 			switch l.Type {
-			case LibraryTypeMovies, LibraryTypeStandup: // standup is the same for now except a slighty different alt folder
+			case LibraryTypeMovies, LibraryTypeStandup: // standup is the same for now except a slightly different alt folder
 				c, err = l.MovieFor(lf)
 			case LibraryTypeSeries:
 				c, err = l.SeriesFor(lf)
+			case LibraryTypeUnknown:
+				fallthrough
 			default:
 				return nil, fmt.Errorf("unknown library type: %d", l.Type)
 			}

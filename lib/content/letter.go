@@ -3,6 +3,7 @@ package content
 import (
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 var prefixes = [...]string{"The ", "A ", "An "}
@@ -22,7 +23,7 @@ func GetLetter(folder string) string {
 	if _, err := strconv.Atoi(letter); err == nil {
 		letter = "0"
 		// else if not a letter use @
-	} else if !('a' <= c && c <= 'z') && !('A' <= c && c <= 'Z') {
+	} else if !unicode.IsLetter(rune(c)) {
 		letter = "@"
 	}
 

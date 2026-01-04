@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 
 	c "github.com/gookit/color"
@@ -14,7 +15,7 @@ func ValidateParams(params []string) func(cmd *cobra.Command, args []string) err
 	return func(cmd *cobra.Command, args []string) error {
 		for _, p := range params {
 			if viper.GetString(p) == "" {
-				return fmt.Errorf(p + " parameter can't be empty")
+				return errors.New(p + " parameter can't be empty")
 			}
 		}
 

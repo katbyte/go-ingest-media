@@ -12,7 +12,7 @@ func ListFolders(ipath string) ([]string, error) {
 
 	files, err := os.ReadDir(ipath)
 	if err != nil {
-		return nil, fmt.Errorf("error reading the path %v: %w\n", ipath, err)
+		return nil, fmt.Errorf("error reading the path %v: %w", ipath, err)
 	}
 
 	for _, file := range files {
@@ -30,7 +30,7 @@ func ListFiles(ipath string) ([]string, error) {
 
 	files, err := os.ReadDir(ipath)
 	if err != nil {
-		return nil, fmt.Errorf("error reading the path %v: %w\n", ipath, err)
+		return nil, fmt.Errorf("error reading the path %v: %w", ipath, err)
 	}
 
 	for _, file := range files {
@@ -44,12 +44,12 @@ func ListFiles(ipath string) ([]string, error) {
 }
 
 func ListFilesAndFolders(ipath string) ([]string, error) {
-	var paths []string
-
 	files, err := os.ReadDir(ipath)
 	if err != nil {
-		return nil, fmt.Errorf("error reading the path %v: %w\n", ipath, err)
+		return nil, fmt.Errorf("error reading the path %v: %w", ipath, err)
 	}
+
+	paths := make([]string, 0, len(files))
 
 	for _, file := range files {
 		fullPath := filepath.Join(ipath, file.Name())

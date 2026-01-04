@@ -120,6 +120,8 @@ func (l Library) AltFolderFor(folder string) (*string, error) {
 				newFolder := m.FindRegex.ReplaceAllString(folderWithoutYear, fmt.Sprintf("%s %s", match, year))
 				return &newFolder, nil
 			}
+		case UnknownMapping, MappingTypeReplace:
+			fallthrough
 		default:
 			return nil, fmt.Errorf("unknown mapping type: %d", m.Type)
 		}

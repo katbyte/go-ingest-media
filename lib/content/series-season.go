@@ -86,7 +86,6 @@ func GetSeasons(path string) (map[int]Season, error) {
 			seasons[s.Number] = s
 			mutex.Unlock()
 		}(f)
-
 	}
 	go func() {
 		wg.Wait()

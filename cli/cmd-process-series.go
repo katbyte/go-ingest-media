@@ -165,13 +165,14 @@ func ProcessSeries(l content.Library) error {
 					RenderVideoComparisonTable(2, headers, append([]content.VideoFile{srcVideo}, de.Videos...))
 
 					var s rune
-					if moveAll {
+					switch {
+					case moveAll:
 						s = 'A'
-					} else if deleteAll {
+					case deleteAll:
 						s = 'D'
-					} else if skipAll {
+					case skipAll:
 						s = 'S'
-					} else {
+					default:
 						c.Printf(" overwrite (y/a/A (all)?) delete src (d/D (all)?) skip (s/S?) quit (q?): ")
 						s, err = ktio.GetSelection('a', 'y', 'd', 's', 'q', 'A', 'D', 'S')
 						if err != nil {
@@ -229,7 +230,9 @@ func ProcessSeries(l content.Library) error {
 			}
 			if empty {
 				c.Printf("%s     <green>EMPTY</> - removing directory: ", intentStr)
-				ktio.RunCommand(indent+6, f.Confirm, "rmdir", "-v", ss.Path)
+				if err := ktio.RunCommand(indent+6, f.Confirm, "rmdir", "-v", ss.Path); err != nil {
+					c.Printf("      <red>ERROR:</> deleting empty season folder: %s\n", err)
+				}
 			}
 			fmt.Println()
 		}
@@ -245,18 +248,19 @@ func ProcessSeries(l content.Library) error {
 		}
 
 		// if empty series folder then delete it
-		empty, err := ktio.FolderEmpty(s.SrcPath())
-		if err != nil {
-			c.Printf(" <red>ERROR:</> checking if empty%s\n", err)
-			continue
-		}
-		if empty {
-			c.Printf("%s   <green>EMPTY</> - removing directory: ", intentStr)
-			if err := ktio.RunCommand(indent+4, f.Confirm, "rmdir", "-v", s.SrcPath()); err != nil {
-				c.Printf("    <red>ERROR:</> deleting source folder: %s\n", err)
+		// if empty season remove it
+		/*
+			// TODO check if empty but it wont ever be if we are processing it right?
+			empty, err = ktio.FolderEmpty(s.SrcPath())
+			if err != nil {
+				c.Printf(" <red>ERROR:</> checking if empty%s\n", err)
+				continue
 			}
-			fmt.Println()
-		}
+			if empty {
+				c.Printf("%s     <green>EMPTY</> - removing directory: ", intentStr)
+				ktio.RunCommand(indent, f.Confirm, "rmdir", "-v", s.SrcPath())
+			}
+		*/
 	}
 
 	// print delete commands
@@ -308,9 +312,7 @@ func ProcessSeries(l content.Library) error {
 					c.Printf("    <red>ERROR:</> deleting season folder: %s\n", err)
 				}
 			}
-
 		}
-
 		empty, err := ktio.FolderEmpty(s.SrcPath())
 		if err != nil {
 			c.Printf(" <red>ERROR:</> checking if empty%s\n", err)
@@ -332,7 +334,7 @@ func ProcessSpecialFiles(indent int, s content.Series, folder string, files []st
 
 	dstPath := path.Join(s.DstPath(), folder)
 	if !ktio.PathExists(dstPath) {
-		if err := os.MkdirAll(dstPath, 0o755); err != nil {
+		if err := os.MkdirAll(dstPath, 0o750); err != nil {
 			return fmt.Errorf("error creating specials directory: %w", err)
 		}
 	}

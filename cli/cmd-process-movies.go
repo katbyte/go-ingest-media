@@ -34,17 +34,14 @@ func ProcessMovies(l content.Library) error {
 		i++
 		fmt.Printf("")
 
-		// TODO
-		// TODO
 		// TODO use go channels to run multiple moves at once/queue them up in the background
-		// TODO
-		// TODO
 
 		// if not exists just move folder nice and easy like
 		if !m.DstExists() {
 			c.Printf("<darkGray>%d/%d</> <white>%s</> --> <green>%s</>", i, nMovies, m.SrcFolder, m.DstFolder)
-			m.MoveFolder(f.Confirm, 4)
-			fmt.Println()
+			if err := m.MoveFolder(f.Confirm, 4); err != nil {
+				c.Printf(" <red>ERROR:</> moving folder: %s\n", err)
+			}
 			continue
 		}
 
@@ -222,8 +219,6 @@ func ProcessMovies(l content.Library) error {
 				}
 			}
 		}
-		fmt.Println()
-
 	}
 	return nil
 }

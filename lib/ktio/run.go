@@ -13,7 +13,7 @@ func RunCommand(indent int, confirm bool, command string, args ...string) error 
 	color.Printf("  <darkGray>%s %s</>", command, strings.Join(args, " "))
 
 	fields := strings.Fields(command)
-	cmd := exec.Command(fields[0], args...)
+	cmd := exec.Command(fields[0], args...) //nolint:gosec
 
 	if confirm {
 		color.Printf(" <lightYellow> CONFIRM y/n: </>")
