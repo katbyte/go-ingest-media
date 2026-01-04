@@ -139,6 +139,18 @@ func RenderVideoComparisonTable(indent int, headers []string, videos []content.V
 				}
 			}
 
+			if row.Name == "Resolution" {
+				diffW := math.Abs(float64(v.ResolutionW - videos[0].ResolutionW))
+				diffH := math.Abs(float64(v.ResolutionH - videos[0].ResolutionH))
+				diff := diffW + diffH
+				if diff > 0 && diff < 10 {
+					return c.Sprintf("<lightBlue>%s</>", s)
+				}
+				if diff >= 10 && diff < 20 {
+					return c.Sprintf("<blue>%s</>", s)
+				}
+			}
+
 			if row.Name == "Bitrate" {
 				srcBitrate := float64(videos[0].BitRate)
 				if srcBitrate > 0 {
