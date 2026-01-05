@@ -19,12 +19,13 @@ type Season struct {
 	Year   int
 	Path   string
 
-	Episodes map[int]Episode
+	Episodes map[int]*Episode
 }
 
 type Episode struct {
-	Season int
-	Number int
+	Season         int
+	Number         int
+	EpisodeNumbers []int // list of episodes this file represents
 
 	Videos []VideoFile
 
@@ -74,7 +75,10 @@ func GetSeasons(path string) (map[int]Season, error) {
 			}
 
 			// Get the episodes in a season
-			_ = s.LoadEpisodes()
+			if err := s.LoadEpisodes(); err != nil {
+				errorChan <- fmt.Errorf("error loading episodes: %w", err)
+				return
+			}
 
 			// Lock the mutex to prevent concurrent writes to the seasons map
 			mutex.Lock()
@@ -110,9 +114,10 @@ func (s *Season) LoadEpisodes() error {
 		return fmt.Errorf("error listing source files: %w", err)
 	}
 
-	s.Episodes = make(map[int]Episode) // Initialise the Episodes map
+	s.Episodes = make(map[int]*Episode) // Initialise the Episodes map
 
-	episodeRegex := regexp.MustCompile(`.* - (\d+)x(\d+) - .*`)
+	// match 01x01, 01x01-02, 01x01+02
+	episodeRegex := regexp.MustCompile(`.* - (\d+)x(\d+)(?:([-+])(\d+))? - .*`)
 
 	for _, file := range files {
 		// Check if the file name matches the episode format
@@ -122,13 +127,46 @@ func (s *Season) LoadEpisodes() error {
 				return fmt.Errorf("error parsing episode number: %w", err)
 			}
 
-			episode, exists := s.Episodes[episodeNumber]
-			if !exists {
-				episode = Episode{
-					Season:     s.Number,
-					Number:     episodeNumber,
-					OtherFiles: []string{},
-					Videos:     []VideoFile{},
+			// check for multi-episode
+			episodeNumbers := []int{episodeNumber}
+			if len(matches) > 4 && matches[4] != "" {
+				separator := matches[3]
+				endEpisodeNumber, err := strconv.Atoi(matches[4])
+				if err != nil {
+					return fmt.Errorf("error parsing end episode number: %w", err)
+				}
+
+				if endEpisodeNumber > episodeNumber {
+					if separator == "-" {
+						// range: add all intermediate episodes
+						for i := episodeNumber + 1; i <= endEpisodeNumber; i++ {
+							episodeNumbers = append(episodeNumbers, i)
+						}
+					} else {
+						// plus: add just the end episode (assuming "01+03" means 1 and 3)
+						episodeNumbers = append(episodeNumbers, endEpisodeNumber)
+					}
+				}
+			}
+
+			// find or create episode
+			var episode *Episode
+
+			// check if any of the episode numbers already exist
+			for _, num := range episodeNumbers {
+				if existing, exists := s.Episodes[num]; exists {
+					episode = existing
+					break
+				}
+			}
+
+			if episode == nil {
+				episode = &Episode{
+					Season:         s.Number,
+					Number:         episodeNumber,
+					EpisodeNumbers: episodeNumbers,
+					OtherFiles:     []string{},
+					Videos:         []VideoFile{},
 				}
 			}
 
@@ -143,7 +181,10 @@ func (s *Season) LoadEpisodes() error {
 				episode.OtherFiles = append(episode.OtherFiles, file)
 			}
 
-			s.Episodes[episodeNumber] = episode
+			// map all episode numbers to this episode instance
+			for _, num := range episodeNumbers {
+				s.Episodes[num] = episode
+			}
 		}
 	}
 
@@ -178,7 +219,12 @@ func (e *Episode) MoveExtras(confirm bool, indent int, dstPath string) error {
 		}
 
 		// calculate indent from "seasonXepisode -->"
-		fmt.Printf("%s --> ", strings.Repeat(" ", indent-len(strconv.Itoa(e.Season))+1+len(strconv.Itoa(e.Number))))
+		epNumStr := strconv.Itoa(e.Number)
+		if len(e.EpisodeNumbers) > 1 {
+			// if multi episode, assume last is the end
+			epNumStr = fmt.Sprintf("%d-%d", e.EpisodeNumbers[0], e.EpisodeNumbers[len(e.EpisodeNumbers)-1])
+		}
+		fmt.Printf("%s --> ", strings.Repeat(" ", indent-len(strconv.Itoa(e.Season))+1+len(epNumStr)))
 		if err := ktio.RunCommand(indent, confirm, "mv", "-v", file, dstPath); err != nil {
 			c.Printf("   <red>ERROR:</> moving other file: %s\n", err)
 		}

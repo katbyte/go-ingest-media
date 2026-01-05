@@ -93,8 +93,17 @@ func ProcessSeries(l content.Library) error {
 			moveAll := false
 			deleteAll := false
 			skipAll := false
+
+			processedEpisodes := make(map[*content.Episode]bool)
+
 			for _, episodeNum := range srcEpisodeNumbers {
 				se := ss.Episodes[episodeNum]
+
+				// check if already processed
+				if processedEpisodes[se] {
+					continue
+				}
+				processedEpisodes[se] = true
 
 				// handle multiple source videos for the episode
 				if len(se.Videos) > 1 {
