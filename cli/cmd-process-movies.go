@@ -78,9 +78,9 @@ func ProcessMovies(l content.Library) error {
 			}
 
 			RenderVideoComparisonTable(2, headers, m.SrcVideos)
-			c.Printf(" pick source to keep (1-%d): ", len(m.SrcVideos))
+			c.Printf(" pick source to keep (1-%d) skip (s) quit (q): ", len(m.SrcVideos))
 
-			options := []rune{}
+			options := []rune{'s', 'q'}
 			for k := 1; k <= len(m.SrcVideos) && k <= 9; k++ {
 				options = append(options, rune('0'+k))
 			}
@@ -88,6 +88,13 @@ func ProcessMovies(l content.Library) error {
 			fmt.Println()
 			if err != nil {
 				c.Printf(" <red>ERROR:</>%s\n", err)
+				continue
+			}
+
+			if s == 'q' {
+				return errors.New("quitting")
+			}
+			if s == 's' {
 				continue
 			}
 

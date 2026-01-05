@@ -106,8 +106,8 @@ func ProcessSeries(l content.Library) error {
 					}
 					RenderVideoComparisonTable(indent+6, headers, se.Videos)
 
-					c.Printf("%s     pick source to keep (1-%d): ", intentStr, len(se.Videos))
-					options := []rune{}
+					c.Printf("%s     pick source to keep (1-%d) skip (s) quit (q): ", intentStr, len(se.Videos))
+					options := []rune{'s', 'q'}
 					for k := 1; k <= len(se.Videos) && k <= 9; k++ {
 						options = append(options, rune('0'+k))
 					}
@@ -115,6 +115,13 @@ func ProcessSeries(l content.Library) error {
 					fmt.Println()
 					if err != nil {
 						c.Printf(" <red>ERROR:</>%s\n", err)
+						continue
+					}
+
+					if s == 'q' {
+						return errors.New("quitting")
+					}
+					if s == 's' {
 						continue
 					}
 
@@ -327,6 +334,16 @@ func ProcessSeries(l content.Library) error {
 		if len(s.ExtraFiles) > 0 {
 			c.Printf("%s   <magenta>%d extra files</> \n", intentStr, len(s.ExtraFiles))
 			_ = ProcessSpecialFiles(indent, s, "extras", s.ExtraFiles, &pathsToDelete)
+		}
+
+		// cleanup empty specials/extras first
+		for _, sub := range []string{"specials", "extras"} {
+			subPath := fmt.Sprintf("%s/%s", s.SrcPath(), sub)
+			if ktio.PathExists(subPath) {
+				if err := ktio.DeleteIfEmpty(subPath, f.Confirm, indent); err != nil {
+					c.Printf(" <red>ERROR:</> deleting empty %s folder: %s\n", sub, err)
+				}
+			}
 		}
 
 		// if empty series folder then delete it
