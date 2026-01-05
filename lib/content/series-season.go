@@ -2,6 +2,7 @@ package content
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -165,8 +166,17 @@ func (e *Episode) MoveFiles(confirm bool, indent int, dstPath string) error {
 		c.Printf("   <red>ERROR:</> moving video: %s\n", err)
 	}
 
+	return e.MoveExtras(confirm, indent, dstPath)
+}
+
+func (e *Episode) MoveExtras(confirm bool, indent int, dstPath string) error {
 	// move all other files
 	for _, file := range e.OtherFiles {
+		// skip nfo files
+		if filepath.Ext(file) == ".nfo" {
+			continue
+		}
+
 		// calculate indent from "seasonXepisode -->"
 		fmt.Printf("%s --> ", strings.Repeat(" ", indent-len(strconv.Itoa(e.Season))+1+len(strconv.Itoa(e.Number))))
 		if err := ktio.RunCommand(indent, confirm, "mv", "-v", file, dstPath); err != nil {
