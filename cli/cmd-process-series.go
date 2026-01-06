@@ -261,6 +261,8 @@ func ProcessSeries(l content.Library) error {
 				switch s {
 				case 'A':
 					moveAll = true
+					deleteAll = false
+					skipAll = false
 					fallthrough
 				case 'a', 'y':
 					// delete de files
@@ -303,6 +305,8 @@ func ProcessSeries(l content.Library) error {
 
 				case 'D':
 					deleteAll = true
+					moveAll = false
+					skipAll = false
 					fallthrough
 				case 'd':
 					if err := ktio.RunCommand(4, f.Confirm, "rm", "-v", srcVideo.Path); err != nil {
@@ -311,6 +315,8 @@ func ProcessSeries(l content.Library) error {
 					fmt.Println()
 				case 'S':
 					skipAll = true
+					moveAll = false
+					deleteAll = false
 					continue
 				case 's':
 					continue

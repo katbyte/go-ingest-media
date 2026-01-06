@@ -146,3 +146,40 @@ func (v *VideoFile) SubtitlesSortedByLanguage() []FFProbeStreamSubtitle {
 
 	return sortedSubtitles
 }
+
+// AspectRatio returns the aspect ratio as a simplified string like "16:9" or "4:3"
+func (v *VideoFile) AspectRatio() string {
+	if v.ResolutionW == 0 || v.ResolutionH == 0 {
+		return "unknown"
+	}
+
+	// Calculate aspect ratio
+	ratio := float64(v.ResolutionW) / float64(v.ResolutionH)
+
+	// Common aspect ratios
+	switch {
+	case ratio >= 2.3 && ratio <= 2.45:
+		return "2.39:1" // Cinemascope
+	case ratio >= 2.1 && ratio <= 2.2:
+		return "2.2:1" // 70mm
+	case ratio >= 1.8 && ratio <= 1.95:
+		return "1.85:1" // Widescreen
+	case ratio >= 1.7 && ratio <= 1.8:
+		return "16:9"
+	case ratio >= 1.3 && ratio <= 1.4:
+		return "4:3"
+	case ratio >= 1.5 && ratio <= 1.55:
+		return "3:2"
+	default:
+		return fmt.Sprintf("%.2f:1", ratio)
+	}
+}
+
+// IsWidescreen returns true if the video is widescreen (16:9 or wider)
+func (v *VideoFile) IsWidescreen() bool {
+	if v.ResolutionW == 0 || v.ResolutionH == 0 {
+		return false
+	}
+	ratio := float64(v.ResolutionW) / float64(v.ResolutionH)
+	return ratio >= 1.6 // 16:9 = 1.777, 4:3 = 1.333
+}

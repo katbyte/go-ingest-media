@@ -62,6 +62,12 @@ var rows = []TableRow{
 		},
 	},
 	{
+		"Aspect",
+		func(file content.VideoFile) string { return file.AspectRatio() },
+		func(v1, v2 content.VideoFile) bool { return v1.AspectRatio() == v2.AspectRatio() },
+		func(v1, v2 content.VideoFile) bool { return v1.IsWidescreen() && !v2.IsWidescreen() },
+	},
+	{
 		"Codec",
 		func(file content.VideoFile) string { return file.VideoStream.CodecName },
 		func(v1, v2 content.VideoFile) bool { return v1.VideoStream.CodecName == v2.VideoStream.CodecName },
@@ -158,6 +164,16 @@ func RenderVideoComparisonTable(indent int, headers []string, videos []content.V
 					if diff < 0.01 {
 						return c.Sprintf("<blue>%s</>", s)
 					}
+				}
+			}
+
+			if row.Name == "Aspect" {
+				// Check if there's a 4:3 vs widescreen mismatch
+				srcWidescreen := videos[0].IsWidescreen()
+				vWidescreen := v.IsWidescreen()
+				if srcWidescreen != vWidescreen {
+					// Red background for aspect ratio mismatch
+					return c.Sprintf("<bgRed;white;op=bold>%s</>", s)
 				}
 			}
 
