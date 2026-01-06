@@ -301,7 +301,6 @@ func ProcessSeries(l content.Library) error {
 					if err := ktio.RunCommand(4, f.Confirm, "rm", "-v", srcVideo.Path); err != nil {
 						c.Printf("    <red>ERROR:</> deleting source video: %s\n", err)
 					}
-					fmt.Println()
 
 				case 'D':
 					deleteAll = true
@@ -312,7 +311,6 @@ func ProcessSeries(l content.Library) error {
 					if err := ktio.RunCommand(4, f.Confirm, "rm", "-v", srcVideo.Path); err != nil {
 						c.Printf("    <red>ERROR:</> deleting source video: %s\n", err)
 					}
-					fmt.Println()
 				case 'S':
 					skipAll = true
 					moveAll = false
