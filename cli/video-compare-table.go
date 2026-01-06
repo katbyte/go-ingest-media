@@ -137,7 +137,7 @@ func RenderVideoComparisonTable(indent int, headers []string, videos []content.V
 
 			if row.Name == "Duration" {
 				diff := math.Abs(v.Duration - videos[0].Duration)
-				if diff < 5 {
+				if diff > 0 && diff < 5 {
 					return c.Sprintf("<lightBlue>%s</>", s)
 				}
 				if diff >= 5 && diff < 10 {
@@ -157,7 +157,7 @@ func RenderVideoComparisonTable(indent int, headers []string, videos []content.V
 				}
 			}
 
-			if row.Name == "Bitrate" {
+			if row.Name == "Bitrate" && vIndex > 0 {
 				srcBitrate := float64(videos[0].BitRate)
 				if srcBitrate > 0 {
 					diff := math.Abs(float64(v.BitRate)-srcBitrate) / srcBitrate
