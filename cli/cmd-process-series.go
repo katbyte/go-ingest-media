@@ -320,17 +320,9 @@ func ProcessSeries(l content.Library) error {
 				fmt.Println()
 			}
 
-			// if empty season remove it
-			empty, err := ktio.FolderEmpty(ss.Path)
-			if err != nil {
-				c.Printf(" <red>ERROR:</> checking if empty%s\n", err)
-				continue
-			}
-			if empty {
-				c.Printf("%s     <green>EMPTY</> - removing directory: ", intentStr)
-				if err := ktio.RunCommand(indent+6, f.Confirm, "rmdir", "-v", ss.Path); err != nil {
-					c.Printf("      <red>ERROR:</> deleting empty season folder: %s\n", err)
-				}
+			// if empty season (or only nfo files) remove it
+			if err := ktio.DeleteIfEmptyOrOnlyNfo(ss.Path, f.Confirm, indent+6); err != nil {
+				c.Printf("      <red>ERROR:</> cleaning up season folder: %s\n", err)
 			}
 			fmt.Println()
 		}
@@ -345,19 +337,19 @@ func ProcessSeries(l content.Library) error {
 			_ = ProcessSpecialFiles(indent, s, "extras", s.ExtraFiles, &pathsToDelete)
 		}
 
-		// cleanup empty specials/extras first
+		// cleanup empty specials/extras first (and any remaining nfo files)
 		for _, sub := range []string{"specials", "extras"} {
 			subPath := fmt.Sprintf("%s/%s", s.SrcPath(), sub)
 			if ktio.PathExists(subPath) {
-				if err := ktio.DeleteIfEmpty(subPath, f.Confirm, indent); err != nil {
-					c.Printf(" <red>ERROR:</> deleting empty %s folder: %s\n", sub, err)
+				if err := ktio.DeleteIfEmptyOrOnlyNfo(subPath, f.Confirm, indent); err != nil {
+					c.Printf(" <red>ERROR:</> deleting %s folder: %s\n", sub, err)
 				}
 			}
 		}
 
-		// if empty series folder then delete it
-		if err := ktio.DeleteIfEmpty(s.SrcPath(), f.Confirm, indent); err != nil {
-			c.Printf(" <red>ERROR:</> deleting empty series folder: %s\n", err)
+		// if empty series folder (or only nfo files) then delete it
+		if err := ktio.DeleteIfEmptyOrOnlyNfo(s.SrcPath(), f.Confirm, indent); err != nil {
+			c.Printf(" <red>ERROR:</> deleting series folder: %s\n", err)
 		}
 	}
 
@@ -437,11 +429,28 @@ func ProcessSpecialFiles(indent int, s content.Series, folder string, files []st
 		}
 	}
 
+	moveAll := false
 	for _, file := range files {
-		c.Printf("%s       --> <white>%s</> move (y/n)? ", strings.Repeat(" ", indent), path.Base(file))
-		if yes, err := ktio.Confirm(); err != nil {
-			return fmt.Errorf("confirmation error: %w", err)
-		} else if yes {
+		shouldMove := moveAll
+		if !moveAll {
+			c.Printf("%s       --> <white>%s</> move (y/n/a)? ", strings.Repeat(" ", indent), path.Base(file))
+			s, err := ktio.GetSelection('y', 'n', 'a')
+			fmt.Println() // newline after selection
+			if err != nil {
+				return fmt.Errorf("selection error: %w", err)
+			}
+			switch s {
+			case 'a':
+				moveAll = true
+				shouldMove = true
+			case 'y':
+				shouldMove = true
+			}
+		} else {
+			c.Printf("%s       --> <white>%s</> moving...\n", strings.Repeat(" ", indent), path.Base(file))
+		}
+
+		if shouldMove {
 			if err := ktio.RunCommand(indent+6, f.Confirm, "mv", "-v", file, dstPath+"/"); err != nil {
 				return fmt.Errorf("error moving file: %w", err)
 			}
