@@ -3,6 +3,7 @@ package content
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os/exec"
 	"strconv"
 )
@@ -76,10 +77,16 @@ func FFProbe(pathToVideo string) (*FFProbeOutput, error) {
 	cmd := exec.Command("ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", pathToVideo)
 
 	var out bytes.Buffer
+	var stderr bytes.Buffer
 	cmd.Stdout = &out
+	cmd.Stderr = &stderr
 	err := cmd.Run()
 	if err != nil {
-		return nil, err
+		errMsg := stderr.String()
+		if errMsg == "" {
+			errMsg = "no stderr output"
+		}
+		return nil, fmt.Errorf("%w: %s (file: %s)", err, errMsg, pathToVideo)
 	}
 
 	var info FFProbeOutput

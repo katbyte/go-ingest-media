@@ -1,10 +1,11 @@
 package content
 
 import (
-	"errors"
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/katbyte/go-ingest-media/lib/ktio"
 )
@@ -25,6 +26,12 @@ type ContentInterface interface {
 
 func (l Library) ContentFor(path string) (*Content, error) {
 	f := filepath.Base(path)
+
+	// check for trailing whitespace
+	if f != strings.TrimSpace(f) {
+		return nil, fmt.Errorf("folder name has leading/trailing whitespace: %q", f)
+	}
+
 	m := Content{
 		Library:   l,
 		SrcFolder: f,
@@ -46,9 +53,9 @@ func (l Library) ContentFor(path string) (*Content, error) {
 	regex := regexp.MustCompile(`\((?P<year>\d{4})\)$`)
 	matches := regex.FindStringSubmatch(m.SrcFolder)
 	if len(matches) == 0 {
-		return nil, errors.New("no year found in folder name")
+		return nil, fmt.Errorf("no year found in folder name: '%q'", m.SrcFolder)
 	} else if len(matches) > 2 {
-		return nil, errors.New("more than one year found in folder name?")
+		return nil, fmt.Errorf("more than one year found in folder name: '%q'", m.SrcFolder)
 	}
 
 	// this must be a valid year

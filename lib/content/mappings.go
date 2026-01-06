@@ -47,7 +47,7 @@ var mappings = map[LibraryType][]Mapping{
 		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^Futurama")},
 		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^Gamera")},
 		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^Guardians of the Galaxy")},
-		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^Halloween")},
+		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^Halloween ")},
 		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^Hellraiser")},
 		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^Jurassic Park")},
 		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^Jurassic World")},
