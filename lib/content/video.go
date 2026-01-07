@@ -108,9 +108,7 @@ func VideoFor(path string) (*VideoFile, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error getting audio streams: %w", err)
 	}
-	if len(v.AudioStreams) < 1 {
-		return nil, fmt.Errorf("expected at least 1 audio stream, found %d", len(v.AudioStreams))
-	}
+	// Note: videos with no audio are allowed - will show "NONE" in comparison table
 
 	v.ImageStreams, err = probe.ImageStreams()
 	if err != nil {

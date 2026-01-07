@@ -232,8 +232,12 @@ func RenderVideoComparisonTable(indent int, headers []string, videos []content.V
 			}
 		}
 
-		colourize := func(stream *content.FFProbeStreamAudio, streamIndex int) string {
+		colourize := func(stream *content.FFProbeStreamAudio, streamIndex int, audioRowIndex int, video content.VideoFile) string {
 			if stream == nil {
+				// Show "NONE" for first audio row if video has no audio at all
+				if audioRowIndex == 0 && len(video.AudioStreams) == 0 {
+					return c.Sprintf("<bgRed;white;op=bold>NONE</>")
+				}
 				return ""
 			}
 
@@ -252,7 +256,7 @@ func RenderVideoComparisonTable(indent int, headers []string, videos []content.V
 
 		r := table.Row{c.Sprintf("<darkGray>Audio %d</>", i+1)}
 		for j, stream := range streams {
-			r = append(r, colourize(stream, j))
+			r = append(r, colourize(stream, j, i, videos[j]))
 		}
 		t.AppendRow(r)
 	}
