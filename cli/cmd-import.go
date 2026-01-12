@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"path/filepath"
 	"strconv"
 
 	c "github.com/gookit/color"
@@ -12,19 +11,11 @@ import (
 )
 
 func ImportDownloadedContent(cmd *cobra.Command, args []string) error {
-	f := GetFlags()
-
-	// Initialise library paths
-	content.InitLibraries(f.BaseSrcPath, f.BaseDstPath)
-
 	for id, mapping := range content.GetLibraryMappings() {
 		src := mapping.Source
 		dst := mapping.Dest
 
-		srcFolder := filepath.Base(src.Path)
-		dstFolder := filepath.Base(dst.Path)
-
-		c.Printf("%s/<white>%s</> --> %s/<lightBlue>%s</> ", f.BaseSrcPath, srcFolder, f.BaseDstPath, dstFolder)
+		c.Printf("<white>%s</> --> <lightBlue>%s</> ", src.Path, dst.Path)
 		switch src.Type {
 		case content.LibraryTypeMovies:
 			c.Printf("<cyan>(movies)</> ")

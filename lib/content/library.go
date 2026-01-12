@@ -3,7 +3,6 @@ package content
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/katbyte/go-ingest-media/lib/ktio"
 )
@@ -19,8 +18,7 @@ const (
 
 // Library represents a single library location (either source or destination)
 type Library struct {
-	Path          string // full absolute path, set by InitLibraries
-	SubPath       string // relative folder path (e.g., "m.movies" or "movies")
+	Path          string // full absolute path
 	Type          LibraryType
 	LetterFolders bool
 }
@@ -38,23 +36,23 @@ func (m LibraryMapping) FolderRenames() []FolderMapping {
 
 // Libraries - all known library locations (using pointers for direct access)
 var Libraries = map[string]*Library{
-	// Torrent (sorted) libraries - source
-	"torrent-anime-movies": {SubPath: "m.anime", Type: LibraryTypeMovies},
-	"torrent-movies":       {SubPath: "m.movies", Type: LibraryTypeMovies},
-	"torrent-documentary":  {SubPath: "m.docu", Type: LibraryTypeMovies},
-	"torrent-standup":      {SubPath: "m.standup", Type: LibraryTypeStandup},
-	"torrent-anime-series": {SubPath: "s.anime", Type: LibraryTypeSeries},
-	"torrent-tv":           {SubPath: "s.tv", Type: LibraryTypeSeries},
-	"torrent-docuseries":   {SubPath: "s.docu", Type: LibraryTypeSeries},
+	// Torrent (sorted) libraries - source (/mnt/ztmp/torrents/sorted/...)
+	"torrent-anime-movies": {Path: "/mnt/ztmp/torrents/sorted/m.anime", Type: LibraryTypeMovies},
+	"torrent-movies":       {Path: "/mnt/ztmp/torrents/sorted/m.movies", Type: LibraryTypeMovies},
+	"torrent-documentary":  {Path: "/mnt/ztmp/torrents/sorted/m.docu", Type: LibraryTypeMovies},
+	"torrent-standup":      {Path: "/mnt/ztmp/torrents/sorted/m.standup", Type: LibraryTypeStandup},
+	"torrent-anime-series": {Path: "/mnt/ztmp/torrents/sorted/s.anime", Type: LibraryTypeSeries},
+	"torrent-tv":           {Path: "/mnt/ztmp/torrents/sorted/s.tv", Type: LibraryTypeSeries},
+	"torrent-docuseries":   {Path: "/mnt/ztmp/torrents/sorted/s.docu", Type: LibraryTypeSeries},
 
-	// Video libraries - destination
-	"video-anime-movies": {SubPath: "anime/movies", Type: LibraryTypeMovies},
-	"video-movies":       {SubPath: "movies", Type: LibraryTypeMovies, LetterFolders: true},
-	"video-documentary":  {SubPath: "docu/documentary", Type: LibraryTypeMovies},
-	"video-standup":      {SubPath: "standup", Type: LibraryTypeStandup},
-	"video-anime-series": {SubPath: "anime/series", Type: LibraryTypeSeries, LetterFolders: true},
-	"video-tv":           {SubPath: "tv", Type: LibraryTypeSeries, LetterFolders: true},
-	"video-docuseries":   {SubPath: "docu/docuseries", Type: LibraryTypeSeries},
+	// Video libraries - destination (/mnt/video/...)
+	"video-anime-movies": {Path: "/mnt/video/anime/movies", Type: LibraryTypeMovies},
+	"video-movies":       {Path: "/mnt/video/movies", Type: LibraryTypeMovies, LetterFolders: true},
+	"video-documentary":  {Path: "/mnt/video/docu/documentary", Type: LibraryTypeMovies},
+	"video-standup":      {Path: "/mnt/video/standup", Type: LibraryTypeStandup},
+	"video-anime-series": {Path: "/mnt/video/anime/series", Type: LibraryTypeSeries, LetterFolders: true},
+	"video-tv":           {Path: "/mnt/video/tv", Type: LibraryTypeSeries, LetterFolders: true},
+	"video-docuseries":   {Path: "/mnt/video/docu/docuseries", Type: LibraryTypeSeries},
 }
 
 // LibraryMappings - mappings from source to destination (using direct pointers)
@@ -68,23 +66,8 @@ var LibraryMappings = map[string]LibraryMapping{
 	"docuseries":   {Source: Libraries["torrent-docuseries"], Dest: Libraries["video-docuseries"]},
 }
 
-// Library folder name mappings (library key -> relative folder path)
-// SubPath information is now stored directly in the Library struct; the separate libraryFolders map is no longer needed.
-
-// InitLibraries initialises library paths with the given base paths
-func InitLibraries(srcBasePath, dstBasePath string) {
-	for key, lib := range Libraries {
-		if lib.SubPath == "" {
-			continue
-		}
-		if strings.HasPrefix(key, "torrent") {
-			lib.Path = filepath.Join(srcBasePath, lib.SubPath)
-		} else {
-			lib.Path = filepath.Join(dstBasePath, lib.SubPath)
-		}
-		// No need to reassign - we're modifying the pointer directly
-	}
-}
+// Note: InitLibraries is no longer needed - paths are now hardcoded in the Libraries map.
+// Library configuration will eventually be moved to a config file.
 
 // GetLibraryMappings returns all library mappings (for CLI iteration)
 func GetLibraryMappings() map[string]LibraryMapping {

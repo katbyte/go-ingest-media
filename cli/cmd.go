@@ -43,7 +43,6 @@ func Make(cmdName string) (*cobra.Command, error) {
 		Short:         cmdName + "move media from source paths into my specific folder structure",
 		Long:          `A CLI tool to intelligently go-ingest-media media into my specific folder structure taking into account existing media and video format/quality.`,
 		SilenceErrors: true,
-		PreRunE:       ValidateParams([]string{"src", "dst"}),
 		RunE:          ImportDownloadedContent,
 	}
 
@@ -55,11 +54,6 @@ func Make(cmdName string) (*cobra.Command, error) {
 		SilenceErrors: true,
 		// PreRunE:       ValidateParams([]string{"cache"}),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			f := GetFlags()
-
-			// Initialise library paths
-			content.InitLibraries(f.BaseSrcPath, f.BaseDstPath)
-
 			docuLib := content.Libraries["video-documentary"]
 			moviesLib := content.Libraries["video-movies"]
 
