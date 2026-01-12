@@ -27,6 +27,9 @@ type VideoFile struct {
 	AudioStreams []FFProbeStreamAudio
 	ImageStreams []FFProbeStreamImage
 	Subtitles    []FFProbeStreamSubtitle
+
+	// Set to true if ffprobe failed - only basic file info available
+	FFProbeFailed bool
 }
 
 // lazy "close enough compare"
@@ -79,46 +82,39 @@ func VideoFor(path string) (*VideoFile, error) {
 
 	probe, err := FFProbe(path)
 	if err != nil {
-		return nil, fmt.Errorf("error getting video info: %w", err)
+		// FFProbe failed - return partial video info with what we have
+		v.FFProbeFailed = true
+		v.Resolution = "UNKNOWN"
+		return &v, nil
 	}
 
-	v.BitRate, err = strconv.Atoi(probe.Format.BitRate)
-	if err != nil {
-		return nil, err
-	}
-
-	v.Duration, err = strconv.ParseFloat(probe.Format.Duration, 64)
-	if err != nil {
-		return nil, err
-	}
+	v.BitRate, _ = strconv.Atoi(probe.Format.BitRate)
+	v.Duration, _ = strconv.ParseFloat(probe.Format.Duration, 64)
 
 	vStreams, err := probe.VideoStreams()
 	if err != nil {
-		return nil, fmt.Errorf("error getting video streams: %w", err)
+		v.FFProbeFailed = true
+		v.Resolution = "ERROR"
+		return &v, nil
 	}
-	if len(vStreams) != 1 {
-		return nil, fmt.Errorf("expected 1 video stream, found %d", len(vStreams))
+	if len(vStreams) == 0 {
+		v.FFProbeFailed = true
+		v.Resolution = "NO VIDEO"
+		return &v, nil
+	}
+	if len(vStreams) > 1 {
+		// Multiple video streams - just use the first one
+		v.Resolution = fmt.Sprintf("%dx%d (+%d)", vStreams[0].Width, vStreams[0].Height, len(vStreams)-1)
+	} else {
+		v.Resolution = fmt.Sprintf("%dx%d", vStreams[0].Width, vStreams[0].Height)
 	}
 	v.VideoStream = vStreams[0]
-	v.Resolution = fmt.Sprintf("%dx%d", v.VideoStream.Width, v.VideoStream.Height)
 	v.ResolutionW = v.VideoStream.Width
 	v.ResolutionH = v.VideoStream.Height
 
-	v.AudioStreams, err = probe.AudioStreams()
-	if err != nil {
-		return nil, fmt.Errorf("error getting audio streams: %w", err)
-	}
-	// Note: videos with no audio are allowed - will show "NONE" in comparison table
-
-	v.ImageStreams, err = probe.ImageStreams()
-	if err != nil {
-		return nil, fmt.Errorf("error getting image streams: %w", err)
-	}
-
-	v.Subtitles, err = probe.SubtitleStreams()
-	if err != nil {
-		return nil, fmt.Errorf("error getting subtitle streams: %w", err)
-	}
+	v.AudioStreams, _ = probe.AudioStreams()
+	v.ImageStreams, _ = probe.ImageStreams()
+	v.Subtitles, _ = probe.SubtitleStreams()
 
 	return &v, nil
 }

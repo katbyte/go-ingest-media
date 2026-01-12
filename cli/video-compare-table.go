@@ -131,6 +131,12 @@ func RenderVideoComparisonTable(indent int, headers []string, videos []content.V
 
 		colourize := func(v content.VideoFile, vIndex int) string {
 			s := row.Value(v)
+
+			// Show red background for videos where ffprobe failed
+			if v.FFProbeFailed && (row.Name == "Resolution" || row.Name == "Duration" || row.Name == "Bitrate") {
+				return c.Sprintf("<bgRed;white;op=bold>%s</>", s)
+			}
+
 			if same {
 				return c.Sprintf("<green>%s</>", s)
 			}
