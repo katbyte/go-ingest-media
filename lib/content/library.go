@@ -55,8 +55,8 @@ var Libraries = map[string]*Library{
 	"video-docuseries":   {Path: "/mnt/video/docu/docuseries", Type: LibraryTypeSeries},
 }
 
-// LibraryMappings - mappings from source to destination (using direct pointers)
-var LibraryMappings = map[string]LibraryMapping{
+// LibraryMappingSortedTorrentsImport - mappings from source to destination for importing sorted torrents
+var LibraryMappingSortedTorrentsImport = map[string]LibraryMapping{
 	"anime-movies": {Source: Libraries["torrent-anime-movies"], Dest: Libraries["video-anime-movies"]},
 	"movies":       {Source: Libraries["torrent-movies"], Dest: Libraries["video-movies"]},
 	"documentary":  {Source: Libraries["torrent-documentary"], Dest: Libraries["video-documentary"]},
@@ -64,20 +64,6 @@ var LibraryMappings = map[string]LibraryMapping{
 	"anime-series": {Source: Libraries["torrent-anime-series"], Dest: Libraries["video-anime-series"]},
 	"tv":           {Source: Libraries["torrent-tv"], Dest: Libraries["video-tv"]},
 	"docuseries":   {Source: Libraries["torrent-docuseries"], Dest: Libraries["video-docuseries"]},
-}
-
-// Note: InitLibraries is no longer needed - paths are now hardcoded in the Libraries map.
-// Library configuration will eventually be moved to a config file.
-
-// GetLibraryMappings returns all library mappings (for CLI iteration)
-func GetLibraryMappings() map[string]LibraryMapping {
-	return LibraryMappings
-}
-
-// GetLibraryMapping returns a specific library mapping by key
-func GetLibraryMapping(key string) (LibraryMapping, bool) {
-	m, ok := LibraryMappings[key]
-	return m, ok
 }
 
 // Contents scans this library and returns all content items

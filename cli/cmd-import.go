@@ -11,7 +11,7 @@ import (
 )
 
 func ImportDownloadedContent(cmd *cobra.Command, args []string) error {
-	for id, mapping := range content.GetLibraryMappings() {
+	for id, mapping := range content.LibraryMappingSortedTorrentsImport {
 		src := mapping.Source
 		dst := mapping.Dest
 
