@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"sync"
 
+	c "github.com/gookit/color"
 	"github.com/katbyte/go-ingest-media/lib/ktio"
 )
 
-// adds to the content type (folder) by adding singular video details as 1 movie has 1 video file
+// Series adds to the content type (folder) by adding video details for TV series
 
 type Series struct {
 	Content
@@ -19,10 +20,25 @@ type Series struct {
 	SpecialFiles []string
 }
 
-func (l Library) SeriesFor(folder string) (*Series, error) {
+// SeriesFor creates a Series from a source folder (used for single library scanning)
+func SeriesFor(lib Library, folder string) (*Series, error) {
 	s := Series{}
 
-	c, err := l.ContentFor(folder)
+	// For single library scanning, we create a minimal content
+	s.Content = Content{
+		SrcFolder: folder,
+		DstFolder: folder,
+		Letter:    GetLetter(folder),
+	}
+
+	return &s, nil
+}
+
+// SeriesForMapping creates a Series for source->destination processing
+func SeriesForMapping(mapping LibraryMapping, folder string) (*Series, error) {
+	s := Series{}
+
+	c, err := ContentFor(mapping, folder)
 	if err != nil {
 		return nil, err
 	}
@@ -34,37 +50,30 @@ func (l Library) SeriesFor(folder string) (*Series, error) {
 // only called if destination folder exists
 func (s *Series) LoadContentDetails() error {
 	var wg sync.WaitGroup
-	errTypes := make(chan error, 2)
+	var srcErr, dstErr error
 
 	wg.Add(2)
 
 	// Load source seasons
 	go func() {
 		defer wg.Done()
-		var err error
-		s.SrcSeasons, err = GetSeasons(s.SrcPath())
-		if err != nil {
-			errTypes <- fmt.Errorf("error loading source seasons: %w", err)
-		}
+		s.SrcSeasons, srcErr = GetSeasons(s.SrcPath())
 	}()
 
 	// Load destination seasons
 	go func() {
 		defer wg.Done()
-		var err error
-		s.DstSeasons, err = GetSeasons(s.DstPath())
-		if err != nil {
-			errTypes <- fmt.Errorf("error loading destination seasons: %w", err)
-		}
+		s.DstSeasons, dstErr = GetSeasons(s.DstPath())
 	}()
 
 	wg.Wait()
-	close(errTypes)
 
-	for err := range errTypes {
-		if err != nil {
-			return err
-		}
+	// Log errors as warnings but continue
+	if srcErr != nil {
+		c.Printf("    <yellow>WARNING:</> error loading source seasons: %s\n", srcErr)
+	}
+	if dstErr != nil {
+		c.Printf("    <yellow>WARNING:</> error loading destination seasons: %s\n", dstErr)
 	}
 
 	var err error

@@ -10,10 +10,10 @@ import (
 	"github.com/katbyte/go-ingest-media/lib/ktio"
 )
 
-// represents "the folder" for a movie or series
-// centred around a source folder and a destination folder
+// Content represents "the folder" for a movie or series
+// It knows about both source and destination paths via the mapping
 type Content struct {
-	Library   Library
+	Mapping   LibraryMapping
 	SrcFolder string
 	DstFolder string
 	Letter    string
@@ -24,56 +24,62 @@ type ContentInterface interface {
 	// Methods if any
 }
 
-func (l Library) ContentFor(path string) (*Content, error) {
+// ContentFor creates a Content from a source folder path using the given mapping
+func ContentFor(mapping LibraryMapping, path string) (*Content, error) {
 	f := filepath.Base(path)
+
+	// Validate that source and destination library types match
+	if mapping.Source.Type != mapping.Dest.Type {
+		return nil, fmt.Errorf("library type mismatch: source=%d, dest=%d", mapping.Source.Type, mapping.Dest.Type)
+	}
 
 	// check for trailing whitespace
 	if f != strings.TrimSpace(f) {
 		return nil, fmt.Errorf("folder name has leading/trailing whitespace: %q", f)
 	}
 
-	m := Content{
-		Library:   l,
+	c := Content{
+		Mapping:   mapping,
 		SrcFolder: f,
 		Letter:    GetLetter(f),
 	}
 
 	// lookup potential alt folder
-	altFolder, err := l.AltFolderFor(f)
+	altFolder, err := AltFolderFor(mapping.Source.Type, f)
 	if err != nil {
 		return nil, err
 	}
 	if altFolder != nil {
-		m.DstFolder = *altFolder
+		c.DstFolder = *altFolder
 	} else {
-		m.DstFolder = f
+		c.DstFolder = f
 	}
 
 	// get year
 	regex := regexp.MustCompile(`\((?P<year>\d{4})\)$`)
-	matches := regex.FindStringSubmatch(m.SrcFolder)
+	matches := regex.FindStringSubmatch(c.SrcFolder)
 	if len(matches) == 0 {
-		return nil, fmt.Errorf("no year found in folder name: '%q'", m.SrcFolder)
+		return nil, fmt.Errorf("no year found in folder name: '%q'", c.SrcFolder)
 	} else if len(matches) > 2 {
-		return nil, fmt.Errorf("more than one year found in folder name: '%q'", m.SrcFolder)
+		return nil, fmt.Errorf("more than one year found in folder name: '%q'", c.SrcFolder)
 	}
 
 	// this must be a valid year
-	m.Year, _ = strconv.Atoi(matches[1])
+	c.Year, _ = strconv.Atoi(matches[1])
 
-	return &m, nil
+	return &c, nil
 }
 
 func (c Content) SrcPath() string {
-	return filepath.Join(c.Library.SrcPath, c.SrcFolder)
+	return filepath.Join(c.Mapping.Source.Path, c.SrcFolder)
 }
 
 func (c Content) DstPath() string {
-	if c.Library.LetterFolders {
-		return filepath.Join(c.Library.DstPath, c.Letter, c.DstFolder)
-	} else {
-		return filepath.Join(c.Library.DstPath, c.DstFolder)
+	dest := c.Mapping.Dest
+	if dest.LetterFolders {
+		return filepath.Join(dest.Path, c.Letter, c.DstFolder)
 	}
+	return filepath.Join(dest.Path, c.DstFolder)
 }
 
 func (c Content) DstExists() bool {

@@ -8,7 +8,7 @@ import (
 	"github.com/katbyte/go-ingest-media/lib/ktio"
 )
 
-// adds to the content type (folder) by adding singular video details as 1 movie has 1 video file
+// Movie adds to the content type (folder) by adding singular video details as 1 movie has 1 video file
 
 type Movie struct {
 	Content
@@ -18,10 +18,26 @@ type Movie struct {
 	DstVideos []VideoFile
 }
 
-func (l Library) MovieFor(folder string) (*Movie, error) {
+// MovieFor creates a Movie from a source folder (used for single library scanning)
+func MovieFor(lib Library, folder string) (*Movie, error) {
 	m := Movie{}
 
-	c, err := l.ContentFor(folder)
+	// For single library scanning, we create a dummy mapping
+	// This is used when scanning a library independently (not for src->dst processing)
+	m.Content = Content{
+		SrcFolder: folder,
+		DstFolder: folder,
+		Letter:    GetLetter(folder),
+	}
+
+	return &m, nil
+}
+
+// MovieForMapping creates a Movie for source->destination processing
+func MovieForMapping(mapping LibraryMapping, folder string) (*Movie, error) {
+	m := Movie{}
+
+	c, err := ContentFor(mapping, folder)
 	if err != nil {
 		return nil, err
 	}

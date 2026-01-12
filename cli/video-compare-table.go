@@ -147,7 +147,7 @@ func RenderVideoComparisonTable(indent int, headers []string, videos []content.V
 				return c.Sprintf("<green>%s</>", s)
 			}
 
-			// Close match coloring based on row type
+			// Close match colouring based on row type
 			switch row.Name {
 			case "Duration":
 				diff := math.Abs(v.Duration - videos[0].Duration)

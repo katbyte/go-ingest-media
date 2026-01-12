@@ -83,12 +83,12 @@ func GetSeasons(path string) (map[int]Season, error) {
 			// Lock the mutex to prevent concurrent writes to the seasons map
 			mutex.Lock()
 
-			// error if season already exists
-			if _, ok := seasons[s.Number]; ok {
-				errorChan <- fmt.Errorf("season %d already exists", s.Number)
+			// warn if season already exists (don't error - just use the first one found)
+			if existing, ok := seasons[s.Number]; ok {
+				c.Printf("    <yellow>WARNING:</> season %d already exists (%s vs %s), using first\n", s.Number, existing.Path, s.Path)
+			} else {
+				seasons[s.Number] = s
 			}
-
-			seasons[s.Number] = s
 			mutex.Unlock()
 		}(f)
 	}

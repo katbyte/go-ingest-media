@@ -17,9 +17,8 @@ const (
 	MappingTypeMoveYearRegex
 )
 
-// todo base interface and then implement for each type ??
-// there has to be a better way to do this
-type Mapping struct {
+// FolderMapping handles folder name transformations (renamed from Mapping)
+type FolderMapping struct {
 	Type             MappingType
 	FindStr          *string        // find exact match including year
 	FindRegex        *regexp.Regexp // find anything matching regex
@@ -28,7 +27,8 @@ type Mapping struct {
 	ReplaceYearRegex *regexp.Regexp // replace with this regex where (YYYY) is replaced with ie (1999)
 }
 
-var mappings = map[LibraryType][]Mapping{
+// folderRenames - global folder rename mappings per library type
+var folderRenames = map[LibraryType][]FolderMapping{
 	LibraryTypeMovies: {
 		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^Alvin and the Chipmunks")},
 		{Type: MappingTypeMoveYearRegex, FindRegex: regexp.MustCompile("^American Ninja")},
@@ -94,20 +94,12 @@ var mappings = map[LibraryType][]Mapping{
 	},
 }
 
-// Ong-Bak 3 (2010) -> Ong Bak 3 (2010)
+// AltFolderFor returns an alternate folder name based on folder renames
+func AltFolderFor(libType LibraryType, folder string) (*string, error) {
+	maps := folderRenames[libType]
 
-func (l Library) mappings() []Mapping {
-	maps, ok := mappings[l.Type]
-	if !ok {
-		panic(fmt.Sprintf("no mappings for library type: %d", l.Type))
-	}
-
-	return maps
-}
-
-func (l Library) AltFolderFor(folder string) (*string, error) {
 	// find matching mappings and then return the "alt" folder
-	for _, m := range l.Mappings {
+	for _, m := range maps {
 		switch m.Type {
 		case MappingTypeMoveYearRegex:
 			if m.FindRegex.MatchString(folder) {
@@ -130,8 +122,7 @@ func (l Library) AltFolderFor(folder string) (*string, error) {
 	}
 
 	// if we get here no direct mapping was found, so handle special library mappings (standup)
-	// should this be part of a special library type for standup?
-	if l.Type == LibraryTypeStandup {
+	if libType == LibraryTypeStandup {
 		// for standup we take the year from the end of the folder and then move it to before the first -
 		// ie "Jim Jefferies - Freedumb (2016)" -> "Freedumb (2016) - Jim Jefferies"
 		year := yearRegEx.FindString(folder)

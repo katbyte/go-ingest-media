@@ -12,14 +12,24 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func ProcessMovies(l content.Library) error {
+func ProcessMovies(id string, mapping content.LibraryMapping) error {
 	f := GetFlags()
 
-	movies, err := l.MoviesSource(func(f string, err error) {
-		c.Printf("  %s --> <red>ERROR:</>%s</>\n", path.Base(f), err)
-	})
+	// Get movie folders from source library and create Movie objects with the mapping
+	src := mapping.Source
+	folders, err := ktio.ListFolders(src.Path)
 	if err != nil {
-		return fmt.Errorf("error getting movies: %w", err)
+		return fmt.Errorf("error listing source folders: %w", err)
+	}
+
+	movies := make([]content.Movie, 0, len(folders))
+	for _, folder := range folders {
+		m, err := content.MovieForMapping(mapping, folder)
+		if err != nil {
+			c.Printf("  %s --> <red>ERROR:</>%s</>\n", path.Base(folder), err)
+			continue
+		}
+		movies = append(movies, *m)
 	}
 
 	sort.Slice(movies, func(i, j int) bool {

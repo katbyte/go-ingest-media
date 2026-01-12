@@ -44,7 +44,7 @@ func Make(cmdName string) (*cobra.Command, error) {
 		Long:          `A CLI tool to intelligently go-ingest-media media into my specific folder structure taking into account existing media and video format/quality.`,
 		SilenceErrors: true,
 		PreRunE:       ValidateParams([]string{"src", "dst"}),
-		RunE:          ProcessLibraries,
+		RunE:          ImportDownloadedContent,
 	}
 
 	// check fo duco duplicates between docu folders and movie/tv folders
@@ -57,14 +57,15 @@ func Make(cmdName string) (*cobra.Command, error) {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			f := GetFlags()
 
-			libraries := content.GetLibrariesMap(f.BaseSrcPath, f.BaseDstPath)
+			// Initialise library paths
+			content.InitLibraries(f.BaseSrcPath, f.BaseDstPath)
 
-			docu := libraries["documentary"]
-			movies := libraries["movies"]
+			docuLib := content.Libraries["video-documentary"]
+			moviesLib := content.Libraries["video-movies"]
 
-			c.Printf("%s/<lightCyan>%s</> <-- %s/<lightCyan>%s</> ", f.BaseSrcPath, docu.SrcFolder, f.BaseDstPath, movies.DstFolder)
+			c.Printf("%s <-- %s ", docuLib.Path, moviesLib.Path)
 			fmt.Println()
-			err := DocuDupsMovies(docu, movies)
+			err := DocuDupsMovies(docuLib, moviesLib)
 			if err != nil {
 				return err
 			}

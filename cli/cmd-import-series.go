@@ -14,14 +14,24 @@ import (
 	"github.com/katbyte/go-ingest-media/lib/ktio"
 )
 
-func ProcessSeries(l content.Library) error {
+func ProcessSeries(id string, mapping content.LibraryMapping) error {
 	f := GetFlags()
 
-	series, err := l.SeriesSource(func(f string, err error) {
-		c.Printf("  %s --> <red>ERROR:</>%s</>\n", path.Base(f), err)
-	})
+	// Get series folders from source library and create Series objects with the mapping
+	src := mapping.Source
+	folders, err := ktio.ListFolders(src.Path)
 	if err != nil {
-		return fmt.Errorf("error getting series: %w", err)
+		return fmt.Errorf("error listing source folders: %w", err)
+	}
+
+	series := make([]content.Series, 0, len(folders))
+	for _, folder := range folders {
+		s, err := content.SeriesForMapping(mapping, folder)
+		if err != nil {
+			c.Printf("  %s --> <red>ERROR:</>%s</>\n", path.Base(folder), err)
+			continue
+		}
+		series = append(series, *s)
 	}
 
 	sort.Slice(series, func(i, j int) bool {

@@ -85,7 +85,7 @@ func VideoFor(path string) (*VideoFile, error) {
 		// FFProbe failed - return partial video info with what we have
 		v.FFProbeFailed = true
 		v.Resolution = "UNKNOWN"
-		return &v, nil
+		return &v, nil //nolint:nilerr // intentionally returning nil error for graceful degradation
 	}
 
 	v.BitRate, _ = strconv.Atoi(probe.Format.BitRate)
@@ -95,7 +95,7 @@ func VideoFor(path string) (*VideoFile, error) {
 	if err != nil {
 		v.FFProbeFailed = true
 		v.Resolution = "ERROR"
-		return &v, nil
+		return &v, nil //nolint:nilerr // intentionally returning nil error for graceful degradation
 	}
 	if len(vStreams) == 0 {
 		v.FFProbeFailed = true
