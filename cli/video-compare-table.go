@@ -132,10 +132,18 @@ func RenderVideoComparisonTable(indent int, headers []string, videos []content.V
 		colourize := func(v content.VideoFile, vIndex int) string {
 			s := row.Value(v)
 			if same {
-				return c.Sprintf("<lightBlue>%s</>", s)
+				return c.Sprintf("<green>%s</>", s)
 			}
 
-			if row.Name == "Duration" {
+			// Check if destination value equals the source value (identical) -> green
+			// Only check for destinations (vIndex > 0), not the source itself
+			if vIndex > 0 && row.Equal(v, videos[0]) {
+				return c.Sprintf("<green>%s</>", s)
+			}
+
+			// Close match coloring based on row type
+			switch row.Name {
+			case "Duration":
 				diff := math.Abs(v.Duration - videos[0].Duration)
 				if diff > 0 && diff < 5 {
 					return c.Sprintf("<lightBlue>%s</>", s)
@@ -143,31 +151,39 @@ func RenderVideoComparisonTable(indent int, headers []string, videos []content.V
 				if diff >= 5 && diff < 10 {
 					return c.Sprintf("<blue>%s</>", s)
 				}
-			}
-
-			if row.Name == "Resolution" {
+			case "Resolution":
 				diffW := math.Abs(float64(v.ResolutionW - videos[0].ResolutionW))
 				diffH := math.Abs(float64(v.ResolutionH - videos[0].ResolutionH))
 				diff := diffW + diffH
-				if diff > 0 && diff < 10 {
+				if diff > 0 && diff < 5 {
 					return c.Sprintf("<lightBlue>%s</>", s)
 				}
-				if diff >= 10 && diff < 20 {
+				if diff >= 5 && diff < 10 {
 					return c.Sprintf("<blue>%s</>", s)
 				}
-			}
-
-			if row.Name == "Bitrate" && vIndex > 0 {
+			case "Bitrate":
 				srcBitrate := float64(videos[0].BitRate)
 				if srcBitrate > 0 {
-					diff := math.Abs(float64(v.BitRate)-srcBitrate) / srcBitrate
-					if diff < 0.01 {
+					diffPct := math.Abs(float64(v.BitRate)-srcBitrate) / srcBitrate * 100
+					if diffPct > 0 && diffPct < 5 {
+						return c.Sprintf("<lightBlue>%s</>", s)
+					}
+					if diffPct >= 5 && diffPct < 10 {
 						return c.Sprintf("<blue>%s</>", s)
 					}
 				}
-			}
-
-			if row.Name == "Aspect" {
+			case "Size":
+				srcSize := videos[0].SizeGb
+				if srcSize > 0 {
+					diffPct := math.Abs(v.SizeGb-srcSize) / srcSize * 100
+					if diffPct > 0 && diffPct < 5 {
+						return c.Sprintf("<lightBlue>%s</>", s)
+					}
+					if diffPct >= 5 && diffPct < 10 {
+						return c.Sprintf("<blue>%s</>", s)
+					}
+				}
+			case "Aspect":
 				// Check if there's a 4:3 vs widescreen mismatch
 				srcWidescreen := videos[0].IsWidescreen()
 				vWidescreen := v.IsWidescreen()
@@ -178,7 +194,7 @@ func RenderVideoComparisonTable(indent int, headers []string, videos []content.V
 			}
 
 			if best.Index == vIndex || row.Equal(v, best.File) {
-				return c.Sprintf("<green>%s</>", s)
+				return c.Sprintf("<lightGreen>%s</>", s)
 			}
 			return c.Sprintf("<lightRed>%s</>", s)
 		}
@@ -243,13 +259,25 @@ func RenderVideoComparisonTable(indent int, headers []string, videos []content.V
 
 			s := fmt.Sprintf("%s %s (%s)", stream.CodecName, stream.ChannelLayout, stream.Language)
 			if same {
-				return c.Sprintf("<lightBlue>%s</>", s)
+				return c.Sprintf("<green>%s</>", s)
 			}
+
+			// Check if destination's stream equals the source's stream at same index (identical)
+			// Only check for destinations (streamIndex > 0), not the source itself
+			if streamIndex > 0 && i < len(audioSorted[0]) {
+				srcStream := audioSorted[0][i]
+				if stream.CodecName == srcStream.CodecName &&
+					stream.ChannelLayout == srcStream.ChannelLayout &&
+					stream.Language == srcStream.Language {
+					return c.Sprintf("<green>%s</>", s)
+				}
+			}
+
 			if stream.Language != "eng" {
 				return c.Sprintf("<magenta>%s</>", s)
 			}
 			if bestStreamIndex == streamIndex {
-				return c.Sprintf("<green>%s</>", s)
+				return c.Sprintf("<lightGreen>%s</>", s)
 			}
 			return c.Sprintf("<lightRed>%s</>", s)
 		}
@@ -282,23 +310,33 @@ func RenderVideoComparisonTable(indent int, headers []string, videos []content.V
 			}
 		}
 
-		colourize := func(stream *content.FFProbeStreamSubtitle) string {
+		colourize := func(stream *content.FFProbeStreamSubtitle, subRowIndex int, videoIndex int) string {
 			if stream == nil {
 				return ""
 			}
 			s := fmt.Sprintf("%s (%s)", stream.Language, stream.CodecName)
 			if same {
-				return c.Sprintf("<lightBlue>%s</>", s)
-			}
-			if stream.Language == "eng" {
 				return c.Sprintf("<green>%s</>", s)
+			}
+
+			// Check if destination's subtitle equals the source's subtitle at same index (identical)
+			// Only check for destinations (videoIndex > 0), not the source itself
+			if videoIndex > 0 && subRowIndex < len(subtitlesSorted[0]) {
+				srcSub := subtitlesSorted[0][subRowIndex]
+				if stream.Language == srcSub.Language && stream.CodecName == srcSub.CodecName {
+					return c.Sprintf("<green>%s</>", s)
+				}
+			}
+
+			if stream.Language == "eng" {
+				return c.Sprintf("<lightGreen>%s</>", s)
 			}
 			return c.Sprintf("<magenta>%s</>", s)
 		}
 
 		r := table.Row{c.Sprintf("<darkGray>Subtitle %d</>", i+1)}
-		for _, stream := range streams {
-			r = append(r, colourize(stream))
+		for j, stream := range streams {
+			r = append(r, colourize(stream, i, j))
 		}
 		t.AppendRow(r)
 	}

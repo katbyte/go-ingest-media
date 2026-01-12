@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func ListFolders(ipath string) ([]string, error) {
@@ -108,16 +109,30 @@ func DeleteIfEmpty(path string, confirm bool, indent int) error {
 }
 
 func DeleteIfEmptyOrOnlyNfo(path string, confirm bool, indent int) error {
+	return DeleteIfEmptyOrOnlyJunk(path, confirm, indent)
+}
+
+// DeleteIfEmptyOrOnlyJunk deletes nfo and image files, then deletes folder if empty
+func DeleteIfEmptyOrOnlyJunk(path string, confirm bool, indent int) error {
 	srcContents, err := ListFilesAndFolders(path)
 	if err != nil {
 		return fmt.Errorf("error listing source content: %w", err)
 	}
 
-	// delete all nfo files
+	// Extensions to treat as junk (can be deleted when cleaning up)
+	junkExtensions := map[string]bool{
+		".nfo":  true,
+		".jpg":  true,
+		".jpeg": true,
+		".png":  true,
+	}
+
+	// delete all junk files
 	for _, contentPath := range srcContents {
-		if filepath.Ext(contentPath) == ".nfo" {
+		ext := strings.ToLower(filepath.Ext(contentPath))
+		if junkExtensions[ext] {
 			if err := RunCommand(indent, confirm, "rm", "-v", contentPath); err != nil {
-				return fmt.Errorf("error deleting nfo file: %w", err)
+				return fmt.Errorf("error deleting junk file: %w", err)
 			}
 		}
 	}
