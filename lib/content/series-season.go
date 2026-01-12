@@ -62,6 +62,7 @@ func GetSeasons(path string) (map[int]Season, error) {
 				return
 			}
 			if !isSeason {
+				c.Printf("    <darkGray>SKIP:</> folder doesn't match season format: %s\n", filepath.Base(f))
 				return // Skip folders not matching the format
 			}
 
@@ -176,6 +177,7 @@ func (s *Season) LoadEpisodes() error {
 				if err != nil {
 					return fmt.Errorf("error loading source video: %w", err)
 				}
+				
 				episode.Videos = append(episode.Videos, *v)
 			} else {
 				episode.OtherFiles = append(episode.OtherFiles, file)

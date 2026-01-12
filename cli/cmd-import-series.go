@@ -393,6 +393,11 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 	// post deletes re-check all series folders for emptiness
 	c.Printf("\n\nChecking series and season folders for empties...\n")
 	for _, s := range series {
+		// skip if series folder no longer exists
+		if !ktio.PathExists(s.SrcPath()) {
+			continue
+		}
+
 		var srcSeasonNumbers []int
 		for k := range s.SrcSeasons {
 			srcSeasonNumbers = append(srcSeasonNumbers, k)
@@ -405,10 +410,15 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 		for _, seasonNum := range srcSeasonNumbers {
 			ss := s.SrcSeasons[seasonNum]
 
+			// skip if season folder no longer exists
+			if !ktio.PathExists(ss.Path) {
+				continue
+			}
+
 			// if empty season remove it
 			empty, err := ktio.FolderEmpty(ss.Path)
 			if err != nil {
-				c.Printf(" <red>ERROR:</> checking if empty%s\n", err)
+				c.Printf(" <red>ERROR:</> checking if empty: %s\n", err)
 				continue
 			}
 			if empty {
@@ -419,7 +429,7 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 		}
 		empty, err := ktio.FolderEmpty(s.SrcPath())
 		if err != nil {
-			c.Printf(" <red>ERROR:</> checking if empty%s\n", err)
+			c.Printf(" <red>ERROR:</> checking if empty: %s\n", err)
 			continue
 		}
 		if empty {
