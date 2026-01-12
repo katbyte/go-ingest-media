@@ -177,7 +177,7 @@ func (s *Season) LoadEpisodes() error {
 				if err != nil {
 					return fmt.Errorf("error loading source video: %w", err)
 				}
-				
+
 				episode.Videos = append(episode.Videos, *v)
 			} else {
 				episode.OtherFiles = append(episode.OtherFiles, file)

@@ -17,58 +17,66 @@ import (
 func ProcessSeries(id string, mapping content.LibraryMapping) error {
 	f := GetFlags()
 
-	// Get series folders from source library and create Series objects with the mapping
-	src := mapping.Source
-	folders, err := ktio.ListFolders(src.Path)
-	if err != nil {
-		return fmt.Errorf("error listing source folders: %w", err)
-	}
+	srcLib := mapping.Source
+	dstLib := mapping.Dest
 
-	series := make([]content.Series, 0, len(folders))
-	for _, folder := range folders {
-		s, err := content.SeriesForMapping(mapping, folder)
-		if err != nil {
-			c.Printf("  %s --> <red>ERROR:</>%s</>\n", path.Base(folder), err)
-			continue
-		}
-		series = append(series, *s)
+	// Get all series from source library
+	series, err := srcLib.Series(func(folder string, err error) {
+		c.Printf("  %s --> <red>ERROR:</></>: %s\n", path.Base(folder), err)
+	})
+	if err != nil {
+		return fmt.Errorf("error loading series: %w", err)
 	}
 
 	sort.Slice(series, func(i, j int) bool {
-		return series[i].Letter+"/"+series[i].DstFolder < series[j].Letter+"/"+series[j].DstFolder
+		return series[i].Letter+"/"+series[i].Folder < series[j].Letter+"/"+series[j].Folder
 	})
 
 	pathsToDelete := []string{}
 
 	i := 0
-	nMovies := len(series)
+	nSeries := len(series)
 	for _, s := range series {
 		i++
 
-		// if not exists just move folder nice and easy like
-		if !s.DstExists() {
-			c.Printf("<darkGray>%d/%d</> <white>%s</> --> <green>%s</>", i, nMovies, s.SrcFolder, s.DstFolder)
-			if err := s.MoveFolder(f.Confirm, 4); err != nil {
-				c.Printf(" <red>ERROR:</>%s\n\n", err)
+		// Compute destination path (with potential rename)
+		destPath, err := s.DestPathInWithRename(dstLib, srcLib.Type)
+		if err != nil {
+			c.Printf("<darkGray>%d/%d</> <white>%s</> --> <red>ERROR:</> computing dest path: %s\n", i, nSeries, s.Folder, err)
+			continue
+		}
+
+		// if destination doesn't exist, just move folder
+		if !ktio.PathExists(destPath) {
+			c.Printf("<darkGray>%d/%d</> <white>%s</> --> <green>%s</>", i, nSeries, s.Folder, path.Base(destPath))
+			if err := s.MoveFolder(destPath, f.Confirm, 4); err != nil {
+				c.Printf(" <red>ERROR:</> moving folder: %s\n\n", err)
 			}
 			fmt.Println()
 			continue
 		}
 
 		// exists so lets grab the video details
-		c.Printf("<darkGray>%d/%d</>  <white>%s</> --> <yellow>%s</>\n", i, nMovies, s.SrcFolder, s.DstFolder)
-		// load video details, we do this after confirming the dst exists
-		if err = s.LoadContentDetails(); err != nil {
-			c.Printf(" <red>ERROR:</>%s\n\n", err)
+		c.Printf("<darkGray>%d/%d</>  <white>%s</> --> <yellow>%s</>\n", i, nSeries, s.Folder, path.Base(destPath))
+
+		// load source seasons
+		if err = s.LoadSeasons(); err != nil {
+			c.Printf(" <red>ERROR:</> loading source seasons: %s\n\n", err)
+			continue
+		}
+
+		// load destination seasons
+		if err = s.LoadDestSeasons(destPath); err != nil {
+			c.Printf(" <red>ERROR:</> loading dest seasons: %s\n\n", err)
 			continue
 		}
 
 		// calculate indent from "num/total"
-		indent := len(strconv.Itoa(nMovies)) + 1 + len(strconv.Itoa(i)) + 1
+		indent := len(strconv.Itoa(nSeries)) + 1 + len(strconv.Itoa(i)) + 1
 		intentStr := strings.Repeat(" ", indent)
 
 		var srcSeasonNumbers []int
-		for k := range s.SrcSeasons {
+		for k := range s.Seasons {
 			srcSeasonNumbers = append(srcSeasonNumbers, k)
 		}
 
@@ -77,14 +85,14 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 
 		// for each src season
 		for _, seasonNum := range srcSeasonNumbers {
-			ss := s.SrcSeasons[seasonNum]
+			ss := s.Seasons[seasonNum]
 
 			// see if there is a dst season
 			ds, exists := s.DstSeasons[ss.Number]
 			if !exists {
 				c.Printf("%s   season <green>%d</> --> ", intentStr, seasonNum)
-				if err := ss.MoveFolder(f.Confirm, indent+4, s.DstPath()+"/"); err != nil {
-					c.Printf(" <red>ERROR:</>%s\n\n", err)
+				if err := ss.MoveFolder(f.Confirm, indent+4, destPath+"/"); err != nil {
+					c.Printf(" <red>ERROR:</> moving season: %s\n\n", err)
 				}
 				continue
 			}
@@ -343,17 +351,17 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 
 		if len(s.SpecialFiles) > 0 {
 			c.Printf("%s   <magenta>%d special files</> \n", intentStr, len(s.SpecialFiles))
-			_ = ProcessSpecialFiles(indent, s, "specials", s.SpecialFiles, &pathsToDelete)
+			_ = ProcessSpecialFiles(indent, s, destPath, "specials", s.SpecialFiles, &pathsToDelete)
 		}
 
 		if len(s.ExtraFiles) > 0 {
 			c.Printf("%s   <magenta>%d extra files</> \n", intentStr, len(s.ExtraFiles))
-			_ = ProcessSpecialFiles(indent, s, "extras", s.ExtraFiles, &pathsToDelete)
+			_ = ProcessSpecialFiles(indent, s, destPath, "extras", s.ExtraFiles, &pathsToDelete)
 		}
 
 		// cleanup empty specials/extras first (and any remaining nfo files)
 		for _, sub := range []string{"specials", "extras"} {
-			subPath := fmt.Sprintf("%s/%s", s.SrcPath(), sub)
+			subPath := fmt.Sprintf("%s/%s", s.Path(), sub)
 			if ktio.PathExists(subPath) {
 				if err := ktio.DeleteIfEmptyOrOnlyNfo(subPath, f.Confirm, indent); err != nil {
 					c.Printf(" <red>ERROR:</> deleting %s folder: %s\n", sub, err)
@@ -362,7 +370,7 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 		}
 
 		// if empty series folder (or only nfo files) then delete it
-		if err := ktio.DeleteIfEmptyOrOnlyNfo(s.SrcPath(), f.Confirm, indent); err != nil {
+		if err := ktio.DeleteIfEmptyOrOnlyNfo(s.Path(), f.Confirm, indent); err != nil {
 			c.Printf(" <red>ERROR:</> deleting series folder: %s\n", err)
 		}
 	}
@@ -391,15 +399,15 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 	}
 
 	// post deletes re-check all series folders for emptiness
-	c.Printf("\n\nChecking series and season folders for empties...\n")
+	c.Printf("\nChecking series and season folders for empties...\n")
 	for _, s := range series {
 		// skip if series folder no longer exists
-		if !ktio.PathExists(s.SrcPath()) {
+		if !ktio.PathExists(s.Path()) {
 			continue
 		}
 
 		var srcSeasonNumbers []int
-		for k := range s.SrcSeasons {
+		for k := range s.Seasons {
 			srcSeasonNumbers = append(srcSeasonNumbers, k)
 		}
 
@@ -408,7 +416,7 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 
 		// for each src season
 		for _, seasonNum := range srcSeasonNumbers {
-			ss := s.SrcSeasons[seasonNum]
+			ss := s.Seasons[seasonNum]
 
 			// skip if season folder no longer exists
 			if !ktio.PathExists(ss.Path) {
@@ -427,13 +435,13 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 				}
 			}
 		}
-		empty, err := ktio.FolderEmpty(s.SrcPath())
+		empty, err := ktio.FolderEmpty(s.Path())
 		if err != nil {
 			c.Printf(" <red>ERROR:</> checking if empty: %s\n", err)
 			continue
 		}
 		if empty {
-			if err := ktio.RunCommand(4, f.Confirm, "rmdir", "-v", s.SrcPath()); err != nil {
+			if err := ktio.RunCommand(4, f.Confirm, "rmdir", "-v", s.Path()); err != nil {
 				c.Printf("    <red>ERROR:</> deleting source folder: %s\n", err)
 			}
 			fmt.Println()
@@ -443,10 +451,10 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 	return nil
 }
 
-func ProcessSpecialFiles(indent int, s content.Series, folder string, files []string, pathsToDelete *[]string) error {
+func ProcessSpecialFiles(indent int, s content.Series, seriesDestPath, folder string, files []string, pathsToDelete *[]string) error {
 	f := GetFlags()
 
-	dstPath := path.Join(s.DstPath(), folder)
+	dstPath := path.Join(seriesDestPath, folder)
 	if !ktio.PathExists(dstPath) {
 		if err := os.MkdirAll(dstPath, 0o750); err != nil {
 			return fmt.Errorf("error creating specials directory: %w", err)

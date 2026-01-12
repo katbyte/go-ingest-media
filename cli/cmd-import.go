@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 
 	c "github.com/gookit/color"
@@ -11,7 +12,15 @@ import (
 )
 
 func ImportDownloadedContent(cmd *cobra.Command, args []string) error {
-	for id, mapping := range content.LibraryMappingSortedTorrentsImport {
+	// Sort keys for consistent ordering
+	keys := make([]string, 0, len(content.LibraryMappingSortedTorrentsImport))
+	for k := range content.LibraryMappingSortedTorrentsImport {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, id := range keys {
+		mapping := content.LibraryMappingSortedTorrentsImport[id]
 		src := mapping.Source
 		dst := mapping.Dest
 

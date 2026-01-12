@@ -15,25 +15,19 @@ import (
 func ProcessMovies(id string, mapping content.LibraryMapping) error {
 	f := GetFlags()
 
-	// Get movie folders from source library and create Movie objects with the mapping
-	src := mapping.Source
-	folders, err := ktio.ListFolders(src.Path)
-	if err != nil {
-		return fmt.Errorf("error listing source folders: %w", err)
-	}
+	srcLib := mapping.Source
+	dstLib := mapping.Dest
 
-	movies := make([]content.Movie, 0, len(folders))
-	for _, folder := range folders {
-		m, err := content.MovieForMapping(mapping, folder)
-		if err != nil {
-			c.Printf("  %s --> <red>ERROR:</>%s</>\n", path.Base(folder), err)
-			continue
-		}
-		movies = append(movies, *m)
+	// Get all movies from source library
+	movies, err := srcLib.Movies(func(folder string, err error) {
+		c.Printf("  %s --> <red>ERROR:</></>: %s\n", path.Base(folder), err)
+	})
+	if err != nil {
+		return fmt.Errorf("error loading movies: %w", err)
 	}
 
 	sort.Slice(movies, func(i, j int) bool {
-		return movies[i].Letter+"/"+movies[i].DstFolder < movies[j].Letter+"/"+movies[j].DstFolder
+		return movies[i].Letter+"/"+movies[i].Folder < movies[j].Letter+"/"+movies[j].Folder
 	})
 
 	srcPathsToDelete := []string{}
@@ -44,54 +38,66 @@ func ProcessMovies(id string, mapping content.LibraryMapping) error {
 		i++
 		fmt.Println()
 
-		// TODO use go channels to run multiple moves at once/queue them up in the background
+		// Compute destination path (with potential rename)
+		destPath, err := m.DestPathInWithRename(dstLib, srcLib.Type)
+		if err != nil {
+			c.Printf("<darkGray>%d/%d</> <white>%s</> --> <red>ERROR:</> computing dest path: %s\n", i, nMovies, m.Folder, err)
+			continue
+		}
 
-		// if not exists just move folder nice and easy like
-		if !m.DstExists() {
-			c.Printf("<darkGray>%d/%d</> <white>%s</> --> <green>%s</>", i, nMovies, m.SrcFolder, m.DstFolder)
-			if err := m.MoveFolder(f.Confirm, 4); err != nil {
+		// if destination doesn't exist, just move folder
+		if !ktio.PathExists(destPath) {
+			c.Printf("<darkGray>%d/%d</> <white>%s</> --> <green>%s</>", i, nMovies, m.Folder, path.Base(destPath))
+			if err := m.MoveFolder(destPath, f.Confirm, 4); err != nil {
 				c.Printf(" <red>ERROR:</> moving folder: %s\n", err)
 			}
 			continue
 		}
 
 		// exists so lets grab the video details
-		c.Printf("<darkGray>%d/%d</>  <white>%s</> --> <yellow>%s</>\n", i, nMovies, m.SrcFolder, m.DstFolder)
+		c.Printf("<darkGray>%d/%d</>  <white>%s</> --> <yellow>%s</>\n", i, nMovies, m.Folder, path.Base(destPath))
 
-		// load video details
-		if err = m.LoadVideoInfo(); err != nil {
-			c.Printf(" <red>ERROR:</>%s\n\n", err)
+		// load source videos
+		if err = m.LoadVideos(); err != nil {
+			c.Printf(" <red>ERROR:</> loading source videos: %s\n\n", err)
+			continue
+		}
+
+		// load destination videos
+		dstVideos, err := content.VideosInPath(destPath)
+		if err != nil {
+			c.Printf(" <red>ERROR:</> loading dest videos: %s\n\n", err)
 			continue
 		}
 
 		// if no source videos, delete nfo files and folder if empty
-		if len(m.SrcVideos) == 0 {
+		if len(m.Videos) == 0 {
 			c.Printf("  <yellow>WARNING</> - no source videos\n")
 
-			if err := ktio.DeleteIfEmptyOrOnlyNfo(m.SrcPath(), f.Confirm, 4); err != nil {
+			if err := ktio.DeleteIfEmptyOrOnlyNfo(m.Path(), f.Confirm, 4); err != nil {
 				c.Printf("   <red>ERROR:</> deleting source folder: %s\n", err)
 				continue
 			}
 
-			if ktio.PathExists(m.SrcPath()) {
+			if ktio.PathExists(m.Path()) {
 				c.Printf("    <red>ERROR:</> source folder still exists, skipping\n")
 			}
 			continue
 		}
 
 		// if multiple source videos, ask which one to keep
-		if len(m.SrcVideos) > 1 {
+		if len(m.Videos) > 1 {
 			c.Printf("  <lightMagenta>WARNING - multiple source videos - WARNING </>\n")
 			headers := []string{}
-			for i := range m.SrcVideos {
+			for i := range m.Videos {
 				headers = append(headers, fmt.Sprintf("Source %d", i+1))
 			}
 
-			RenderVideoComparisonTable(2, headers, m.SrcVideos)
-			c.Printf(" pick source to keep (1-%d) skip (s) quit (q): ", len(m.SrcVideos))
+			RenderVideoComparisonTable(2, headers, m.Videos)
+			c.Printf(" pick source to keep (1-%d) skip (s) quit (q): ", len(m.Videos))
 
 			options := []rune{'s', 'q'}
-			for k := 1; k <= len(m.SrcVideos) && k <= 9; k++ {
+			for k := 1; k <= len(m.Videos) && k <= 9; k++ {
 				options = append(options, rune('0'+k))
 			}
 			s, err := ktio.GetSelection(options...)
@@ -109,32 +115,32 @@ func ProcessMovies(id string, mapping content.LibraryMapping) error {
 			}
 
 			keepIdx := int(s-'0') - 1
-			keptVideo := m.SrcVideos[keepIdx]
+			keptVideo := m.Videos[keepIdx]
 
-			for idx, v := range m.SrcVideos {
+			for idx, v := range m.Videos {
 				if idx != keepIdx {
 					if err := ktio.RunCommand(4, f.Confirm, "rm", "-v", v.Path); err != nil {
 						c.Printf("   <red>ERROR:</> deleting source video: %s\n", err)
 					}
 				}
 			}
-			m.SrcVideos = []content.VideoFile{keptVideo}
+			m.Videos = []content.VideoFile{keptVideo}
 		}
 
-		if len(m.DstVideos) == 0 {
+		if len(dstVideos) == 0 {
 			c.Printf("  <yellow>WARNING</> - destination has no video files\n")
-			if err := m.MoveFiles(f.Confirm, 4); err != nil {
+			if err := m.MoveFilesTo(destPath, f.Confirm, 4); err != nil {
 				c.Printf("   <red>ERROR:</> moving files: %s\n", err)
 			}
 			continue
 		}
 
 		// handle single source video
-		srcVideo := m.SrcVideos[0]
+		srcVideo := m.Videos[0]
 
 		// skip if the same and add delete command to rm collection
 		isSame := false
-		for _, dstVideo := range m.DstVideos {
+		for _, dstVideo := range dstVideos {
 			if srcVideo.IsBasicallyTheSameTo(dstVideo) {
 				isSame = true
 				break
@@ -154,17 +160,17 @@ func ProcessMovies(id string, mapping content.LibraryMapping) error {
 
 		// output video comparison table
 		headers := []string{"Source"}
-		if len(m.DstVideos) == 1 {
+		if len(dstVideos) == 1 {
 			headers = append(headers, "Destination")
 		} else {
-			for i := range m.DstVideos {
+			for i := range dstVideos {
 				headers = append(headers, fmt.Sprintf("Dest %d", i+1))
 			}
 		}
-		RenderVideoComparisonTable(2, headers, append([]content.VideoFile{srcVideo}, m.DstVideos...))
-		c.Printf(" overwrite (y/a?) delete src (d?) skip (s?) pick dest (1-%d) quit (q?): ", len(m.DstVideos))
+		RenderVideoComparisonTable(2, headers, append([]content.VideoFile{srcVideo}, dstVideos...))
+		c.Printf(" overwrite (y/a?) delete src (d?) skip (s?) pick dest (1-%d) quit (q?): ", len(dstVideos))
 		options := []rune{'a', 'y', 'd', 's', 'q'}
-		for k := 1; k <= len(m.DstVideos) && k <= 9; k++ {
+		for k := 1; k <= len(dstVideos) && k <= 9; k++ {
 			options = append(options, rune('0'+k))
 		}
 		s, err := ktio.GetSelection(options...)
@@ -179,34 +185,31 @@ func ProcessMovies(id string, mapping content.LibraryMapping) error {
 		case 'a':
 			fallthrough
 		case 'y':
-			// delete destination video files and move new one
-			if err := m.MoveFiles(f.Confirm, 4); err != nil {
+			// delete destination video files first
+			for _, v := range dstVideos {
+				if err := ktio.RunCommand(4, f.Confirm, "rm", "-v", v.Path); err != nil {
+					c.Printf("   <red>ERROR:</> deleting destination video: %s\n", err)
+				}
+			}
+			// move source files to destination
+			if err := m.MoveFilesTo(destPath, f.Confirm, 4); err != nil {
 				c.Printf("   <red>ERROR:</> moving files: %s\n", err)
 			}
 		case 's':
 		case '1', '2', '3', '4', '5', '6', '7', '8', '9':
 			keepIdx := int(s-'0') - 1
 
-			// delete destination video files and move new one
-			// add all but the selected one to delete list and update destination struct incase there is another source
-			var newDst []content.VideoFile
-			for idx, v := range m.DstVideos {
-				if idx == keepIdx {
-					newDst = append(newDst, v)
-				} else {
+			// delete destination video files except the selected one
+			for idx, v := range dstVideos {
+				if idx != keepIdx {
 					if err := ktio.RunCommand(4, f.Confirm, "rm", "-v", v.Path); err != nil {
 						c.Printf("   <red>ERROR:</> deleting destination video: %s\n", err)
 					}
 				}
 			}
-			m.DstVideos = newDst
-			fallthrough // no "delete" the source
+			fallthrough // now delete the source
 		case 'd':
-			// c.Printf(" <darkGray>rm -rf '%s'...</>", m.SrcPath())
-
-			// m.DeleteFolder() // this seems dangerous, should we even implement it?
-			// maybe we output all rm statements at the end and let the user run them
-			srcPathsToDelete = append(srcPathsToDelete, m.SrcPath())
+			srcPathsToDelete = append(srcPathsToDelete, m.Path())
 			continue
 		case 'q':
 			return errors.New("quitting")

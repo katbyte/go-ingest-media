@@ -129,6 +129,15 @@ func RenderVideoComparisonTable(indent int, headers []string, videos []content.V
 			}
 		}
 
+		// Check if all values in this row are equal
+		rowAllSame := true
+		for _, v := range videos[1:] {
+			if !row.Equal(v, videos[0]) {
+				rowAllSame = false
+				break
+			}
+		}
+
 		colourize := func(v content.VideoFile, vIndex int) string {
 			s := row.Value(v)
 
@@ -137,7 +146,13 @@ func RenderVideoComparisonTable(indent int, headers []string, videos []content.V
 				return c.Sprintf("<bgRed;white;op=bold>%s</>", s)
 			}
 
+			// If all videos are basically the same (global check)
 			if same {
+				return c.Sprintf("<green>%s</>", s)
+			}
+
+			// If all values for THIS ROW are equal, show green
+			if rowAllSame {
 				return c.Sprintf("<green>%s</>", s)
 			}
 

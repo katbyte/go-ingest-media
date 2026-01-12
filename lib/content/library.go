@@ -67,7 +67,7 @@ var LibraryMappingSortedTorrentsImport = map[string]LibraryMapping{
 }
 
 // Contents scans this library and returns all content items
-func (l Library) Contents(onContentError func(folder string, err error)) ([]ContentInterface, error) {
+func (l *Library) Contents(onContentError func(folder string, err error)) ([]ContentInterface, error) {
 	folders, err := ktio.ListFolders(l.Path)
 	if err != nil {
 		return nil, fmt.Errorf("error listing content folders: %w", err)
@@ -100,15 +100,15 @@ func (l Library) Contents(onContentError func(folder string, err error)) ([]Cont
 		return contents, nil
 	}
 
-	// letter folders
-	for _, f := range folders {
-		letterFolders, err := ktio.ListFolders(filepath.Join(l.Path, f))
+	// letter folders - folders already contains full paths
+	for _, letterFolder := range folders {
+		subFolders, err := ktio.ListFolders(letterFolder)
 		if err != nil {
-			onContentError(f, err)
+			onContentError(filepath.Base(letterFolder), err)
 			continue
 		}
 
-		for _, lf := range letterFolders {
+		for _, lf := range subFolders {
 			var c ContentInterface
 
 			switch l.Type {
@@ -122,7 +122,7 @@ func (l Library) Contents(onContentError func(folder string, err error)) ([]Cont
 				return nil, fmt.Errorf("unknown library type: %d", l.Type)
 			}
 			if err != nil {
-				onContentError(lf, err)
+				onContentError(filepath.Base(lf), err)
 				continue
 			}
 
@@ -134,7 +134,7 @@ func (l Library) Contents(onContentError func(folder string, err error)) ([]Cont
 }
 
 // Movies returns all movies from this library
-func (l Library) Movies(onContentError func(folder string, err error)) ([]Movie, error) {
+func (l *Library) Movies(onContentError func(folder string, err error)) ([]Movie, error) {
 	contents, err := l.Contents(onContentError)
 	if err != nil {
 		return nil, fmt.Errorf("error getting movies: %w", err)
@@ -151,7 +151,7 @@ func (l Library) Movies(onContentError func(folder string, err error)) ([]Movie,
 }
 
 // Series returns all series from this library
-func (l Library) Series(onContentError func(folder string, err error)) ([]Series, error) {
+func (l *Library) Series(onContentError func(folder string, err error)) ([]Series, error) {
 	contents, err := l.Contents(onContentError)
 	if err != nil {
 		return nil, fmt.Errorf("error getting series: %w", err)

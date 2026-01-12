@@ -59,7 +59,7 @@ func Make(cmdName string) (*cobra.Command, error) {
 
 			c.Printf("%s <-- %s ", docuLib.Path, moviesLib.Path)
 			fmt.Println()
-			err := DocuDupsMovies(docuLib, moviesLib)
+			err := FindAndCombineDocu(docuLib, moviesLib)
 			if err != nil {
 				return err
 			}
