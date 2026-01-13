@@ -54,12 +54,25 @@ func Make(cmdName string) (*cobra.Command, error) {
 		SilenceErrors: true,
 		// PreRunE:       ValidateParams([]string{"cache"}),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Movie documentary duplicates
 			docuLib := content.Libraries["video-documentary"]
 			moviesLib := content.Libraries["video-movies"]
 
 			c.Printf("%s <-- %s ", docuLib.Path, moviesLib.Path)
 			fmt.Println()
 			err := FindAndCombineDocu(docuLib, moviesLib)
+			if err != nil {
+				return err
+			}
+
+			// Series documentary duplicates
+			docuseriesLib := content.Libraries["video-docuseries"]
+			tvLib := content.Libraries["video-tv"]
+
+			fmt.Println()
+			c.Printf("%s <-- %s ", docuseriesLib.Path, tvLib.Path)
+			fmt.Println()
+			err = FindAndCombineDocuSeries(docuseriesLib, tvLib)
 			if err != nil {
 				return err
 			}
