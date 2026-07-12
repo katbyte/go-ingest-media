@@ -81,6 +81,38 @@ func Make(cmdName string) (*cobra.Command, error) {
 		},
 	})
 
+	// scan movie and tv libraries for documentaries via NFO files and move to import folders
+	root.AddCommand(&cobra.Command{
+		Use:           "docu-extract",
+		Short:         cmdName + " scan libraries for documentaries and move to import folders",
+		Long:          `Scan movie and TV libraries for content marked as documentary via NFO genre files and move them to the m.docu/s.docu torrent-sorted import folders`,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Extract documentary movies: video-movies --> torrent-documentary (m.docu)
+			moviesLib := content.Libraries["video-movies"]
+			docuImportLib := content.Libraries["torrent-documentary"]
+
+			c.Printf("<white>%s</> --> <lightBlue>%s</> ", moviesLib.Path, docuImportLib.Path)
+			fmt.Println()
+			if err := ExtractDocuMovies(moviesLib, docuImportLib); err != nil {
+				return err
+			}
+
+			// Extract documentary series: video-tv --> torrent-docuseries (s.docu)
+			tvLib := content.Libraries["video-tv"]
+			docuseriesImportLib := content.Libraries["torrent-docuseries"]
+
+			fmt.Println()
+			c.Printf("<white>%s</> --> <lightBlue>%s</> ", tvLib.Path, docuseriesImportLib.Path)
+			fmt.Println()
+			if err := ExtractDocuSeries(tvLib, docuseriesImportLib); err != nil {
+				return err
+			}
+
+			return nil
+		},
+	})
+
 	if err := configureFlags(root); err != nil {
 		return nil, fmt.Errorf("unable to configure flags: %w", err)
 	}

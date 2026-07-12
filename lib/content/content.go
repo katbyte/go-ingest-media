@@ -2,11 +2,13 @@ package content
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 
+	c "github.com/gookit/color"
 	"github.com/katbyte/go-ingest-media/lib/ktio"
 )
 
@@ -26,9 +28,19 @@ type ContentInterface interface {
 func ContentFor(lib *Library, folder string) (*Content, error) {
 	f := filepath.Base(folder)
 
-	// check for trailing whitespace
-	if f != strings.TrimSpace(f) {
-		return nil, fmt.Errorf("folder name has leading/trailing whitespace: %q", f)
+	// check for leading/trailing whitespace - auto fix by renaming
+	trimmed := strings.TrimSpace(f)
+	if f != trimmed {
+		oldPath := filepath.Join(filepath.Dir(folder), f)
+		newPath := filepath.Join(filepath.Dir(folder), trimmed)
+
+		c.Printf("  <yellow>WARNING:</> folder has whitespace, renaming %q -> %q\n", f, trimmed)
+		if err := os.Rename(oldPath, newPath); err != nil {
+			return nil, fmt.Errorf("error renaming folder to remove whitespace: %w", err)
+		}
+
+		f = trimmed
+		folder = newPath
 	}
 
 	c := Content{
