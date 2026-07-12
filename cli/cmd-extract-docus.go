@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	c "github.com/gookit/color"
 	"github.com/katbyte/go-ingest-media/lib/content"
@@ -69,38 +70,65 @@ func scanMoviesForDocus(lib *content.Library, sb *ktio.StatusBar, logChan chan<-
 
 	go func() {
 		defer close(ch)
-		for i := range movies {
-			sb.UpdateScan(c.Sprintf("<darkGray>scanning</> <cyan>%d</>/<darkGray>%d</> <darkGray>%s/%s</>", i+1, total, movies[i].Letter, movies[i].Folder))
 
-			nfoPath, err := content.FindNfoFile(movies[i].Path())
-			if err != nil {
-				logChan <- c.Sprintf("<darkGray>%d/%d</> <white>%s</> --> <red>ERROR:</> finding nfo: %s", i+1, total, movies[i].Folder, err)
-				continue
-			}
-			if nfoPath == "" {
-				continue
-			}
+		workCh := make(chan int, 100)
+		resultCh := make(chan docuItem, 25)
 
-			nfo, err := content.ReadNfo(nfoPath)
-			if err != nil {
-				logChan <- c.Sprintf("<darkGray>%d/%d</> <white>%s</> --> <red>ERROR:</> reading nfo: %s", i+1, total, movies[i].Folder, err)
-				continue
-			}
+		// Start 10 scan workers
+		var wg sync.WaitGroup
+		for w := 0; w < 25; w++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for i := range workCh {
+					nfoPath, err := content.FindNfoFile(movies[i].Path())
+					if err != nil {
+						logChan <- c.Sprintf("<darkGray>%d/%d</> <white>%s</> --> <red>ERROR:</> finding nfo: %s", i+1, total, movies[i].Folder, err)
+						continue
+					}
+					if nfoPath == "" {
+						continue
+					}
 
-			if !nfo.IsDocumentary() {
-				continue
-			}
+					nfo, err := content.ReadNfo(nfoPath)
+					if err != nil {
+						logChan <- c.Sprintf("<darkGray>%d/%d</> <white>%s</> --> <red>ERROR:</> reading nfo: %s", i+1, total, movies[i].Folder, err)
+						continue
+					}
 
-			ch <- docuItem{
-				index:   i,
-				total:   total,
-				folder:  movies[i].Folder,
-				path:    movies[i].Path(),
-				letter:  movies[i].Letter,
-				nfoPath: nfoPath,
-				nfo:     nfo,
-			}
+					if !nfo.IsDocumentary() {
+						continue
+					}
+
+					resultCh <- docuItem{
+						index:   i,
+						total:   total,
+						folder:  movies[i].Folder,
+						path:    movies[i].Path(),
+						letter:  movies[i].Letter,
+						nfoPath: nfoPath,
+						nfo:     nfo,
+					}
+				}
+			}()
 		}
+
+		// Feeder goroutine - dispatches work and updates scan status
+		go func() {
+			for i := range movies {
+				sb.UpdateScan(c.Sprintf("<darkGray>scanning</> <cyan>%d</>/<darkGray>%d</> <darkGray>%s/%s</>", i+1, total, movies[i].Letter, movies[i].Folder))
+				workCh <- i
+			}
+			close(workCh)
+			wg.Wait()
+			close(resultCh)
+		}()
+
+		// Forward results to output channel
+		for item := range resultCh {
+			ch <- item
+		}
+
 		sb.UpdateScan(c.Sprintf("<green>scan complete</> <darkGray>(%d movies scanned)</>", total))
 	}()
 
@@ -125,38 +153,65 @@ func scanSeriesForDocus(lib *content.Library, sb *ktio.StatusBar, logChan chan<-
 
 	go func() {
 		defer close(ch)
-		for i := range seriesList {
-			sb.UpdateScan(c.Sprintf("<darkGray>scanning</> <cyan>%d</>/<darkGray>%d</> <darkGray>%s/%s</>", i+1, total, seriesList[i].Letter, seriesList[i].Folder))
 
-			nfoPath, err := content.FindNfoFile(seriesList[i].Path())
-			if err != nil {
-				logChan <- c.Sprintf("<darkGray>%d/%d</> <white>%s</> --> <red>ERROR:</> finding nfo: %s", i+1, total, seriesList[i].Folder, err)
-				continue
-			}
-			if nfoPath == "" {
-				continue
-			}
+		workCh := make(chan int, 100)
+		resultCh := make(chan docuItem, 25)
 
-			nfo, err := content.ReadNfo(nfoPath)
-			if err != nil {
-				logChan <- c.Sprintf("<darkGray>%d/%d</> <white>%s</> --> <red>ERROR:</> reading nfo: %s", i+1, total, seriesList[i].Folder, err)
-				continue
-			}
+		// Start 10 scan workers
+		var wg sync.WaitGroup
+		for w := 0; w < 25; w++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for i := range workCh {
+					nfoPath, err := content.FindNfoFile(seriesList[i].Path())
+					if err != nil {
+						logChan <- c.Sprintf("<darkGray>%d/%d</> <white>%s</> --> <red>ERROR:</> finding nfo: %s", i+1, total, seriesList[i].Folder, err)
+						continue
+					}
+					if nfoPath == "" {
+						continue
+					}
 
-			if !nfo.IsDocumentary() {
-				continue
-			}
+					nfo, err := content.ReadNfo(nfoPath)
+					if err != nil {
+						logChan <- c.Sprintf("<darkGray>%d/%d</> <white>%s</> --> <red>ERROR:</> reading nfo: %s", i+1, total, seriesList[i].Folder, err)
+						continue
+					}
 
-			ch <- docuItem{
-				index:   i,
-				total:   total,
-				folder:  seriesList[i].Folder,
-				path:    seriesList[i].Path(),
-				letter:  seriesList[i].Letter,
-				nfoPath: nfoPath,
-				nfo:     nfo,
-			}
+					if !nfo.IsDocumentary() {
+						continue
+					}
+
+					resultCh <- docuItem{
+						index:   i,
+						total:   total,
+						folder:  seriesList[i].Folder,
+						path:    seriesList[i].Path(),
+						letter:  seriesList[i].Letter,
+						nfoPath: nfoPath,
+						nfo:     nfo,
+					}
+				}
+			}()
 		}
+
+		// Feeder goroutine - dispatches work and updates scan status
+		go func() {
+			for i := range seriesList {
+				sb.UpdateScan(c.Sprintf("<darkGray>scanning</> <cyan>%d</>/<darkGray>%d</> <darkGray>%s/%s</>", i+1, total, seriesList[i].Letter, seriesList[i].Folder))
+				workCh <- i
+			}
+			close(workCh)
+			wg.Wait()
+			close(resultCh)
+		}()
+
+		// Forward results to output channel
+		for item := range resultCh {
+			ch <- item
+		}
+
 		sb.UpdateScan(c.Sprintf("<green>scan complete</> <darkGray>(%d series scanned)</>", total))
 	}()
 
