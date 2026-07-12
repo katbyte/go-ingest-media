@@ -124,7 +124,7 @@ func AltFolderFor(libType LibraryType, folder string) (*string, error) {
 	// if we get here no direct mapping was found, so handle special library mappings (standup)
 	if libType == LibraryTypeStandup {
 		// for standup we take the year from the end of the folder and then move it to before the first -
-		// ie "Jim Jefferies - Freedumb (2016)" -> "Freedumb (2016) - Jim Jefferies"
+		// ie "Jim Jefferies - Freedumb (2016)" -> "Jim Jefferies (2016) - Freedumb"
 		year := yearRegEx.FindString(folder)
 		if year == "" {
 			return nil, errors.New("no year found in folder name")

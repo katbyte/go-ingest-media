@@ -40,10 +40,10 @@ func (m *Movie) LoadVideos() error {
 }
 
 // MoveFilesTo moves video and other files to the given destination path
-func (m *Movie) MoveFilesTo(destPath string, confirm bool, indent int) error {
+func (m *Movie) MoveFilesTo(destPath string, prompt bool, indent int) error {
 	// move video files
 	for _, v := range m.Videos {
-		if err := ktio.RunCommand(indent, confirm, "mv", "-v", v.Path, destPath+"/"); err != nil {
+		if err := ktio.RunCommand(indent, prompt, "mv", "-v", v.Path, destPath+"/"); err != nil {
 			return fmt.Errorf("error moving video: %w", err)
 		}
 	}
@@ -66,13 +66,13 @@ func (m *Movie) MoveFilesTo(destPath string, confirm bool, indent int) error {
 		}
 
 		// move file or folder
-		if err := ktio.RunCommand(indent, confirm, "mv", "-v", contentPath, destPath+"/"); err != nil {
+		if err := ktio.RunCommand(indent, prompt, "mv", "-v", contentPath, destPath+"/"); err != nil {
 			return fmt.Errorf("error moving file or folder: %w", err)
 		}
 	}
 
 	// delete source folder if empty
-	if err := ktio.DeleteIfEmptyOrOnlyNfo(m.Path(), confirm, indent); err != nil {
+	if err := ktio.DeleteIfEmptyOrOnlyNfo(m.Path(), prompt, indent); err != nil {
 		return fmt.Errorf("error deleting source folder: %w", err)
 	}
 
@@ -80,9 +80,9 @@ func (m *Movie) MoveFilesTo(destPath string, confirm bool, indent int) error {
 }
 
 // DeleteVideos deletes all video files for this movie
-func (m *Movie) DeleteVideos(confirm bool, indent int) {
+func (m *Movie) DeleteVideos(prompt bool, indent int) {
 	for _, v := range m.Videos {
-		if err := ktio.RunCommand(indent, confirm, "rm", "-v", v.Path); err != nil {
+		if err := ktio.RunCommand(indent, prompt, "rm", "-v", v.Path); err != nil {
 			c.Printf("   <red>ERROR:</> deleting video: %s\n", err)
 		}
 	}

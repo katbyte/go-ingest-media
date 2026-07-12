@@ -1,9 +1,5 @@
 package content
 
-import (
-	"path/filepath"
-)
-
 // list video codecs in order of preference
 var videoCodecs = [...]string{
 	"hevc",       // H.265 or HEVC (High Efficiency Video Coding)
@@ -22,7 +18,7 @@ var videoCodecs = [...]string{
 	"mjpeg",      // Motion JPEG, a series of JPEG images
 }
 
-// map of extension to index in videoExtensions
+// map of codec name to index in videoCodecs
 var videoCodecMap = map[string]int{}
 
 func init() {
@@ -31,9 +27,8 @@ func init() {
 	}
 }
 
-func VideoCodecIndex(path string) int {
-	ext := filepath.Ext(path)
-	if i, ok := videoExtensionsMap[ext]; ok {
+func VideoCodecIndex(codec string) int {
+	if i, ok := videoCodecMap[codec]; ok {
 		return i
 	}
 

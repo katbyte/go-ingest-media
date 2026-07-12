@@ -12,7 +12,6 @@ var videoExtensions = [...]string{
 	".mov",  // Apple QuickTime Movie, native to Apple devices
 	".mpeg", // MPEG-1 and MPEG-2 video, an older standard
 	".mpg",  // MPEG-1 and MPEG-2 video, an older standard
-	".mov",  // Apple QuickTime Movie, native to Apple devices
 	".m4v",  // M4V, Apple’s video file format often used for TV shows, movies, and music videos from iTunes
 	".wmv",  // Windows Media VideoFile, Microsoft's video encoding solution
 	".webm", // WebM, optimised for the web, supported by HTML5

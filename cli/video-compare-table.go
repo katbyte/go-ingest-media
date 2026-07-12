@@ -366,6 +366,8 @@ func RenderVideoComparisonTable(indent int, headers []string, videos []content.V
 
 	// trim trailing newline and indent
 	output := buf.String()
-	output = output[:len(output)-1]
+	if len(output) > 0 {
+		output = output[:len(output)-1]
+	}
 	_, _ = ktio.IndentWriter{W: os.Stdout, Indent: strings.Repeat(" ", indent)}.Write([]byte(output))
 }

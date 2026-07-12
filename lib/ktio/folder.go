@@ -61,12 +61,8 @@ func ListFilesAndFolders(ipath string) ([]string, error) {
 }
 
 func PathExists(path string) bool {
-	info, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		return false
-	}
-
-	return info.IsDir()
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func Move(source, destination string) error {
@@ -93,14 +89,14 @@ func FolderEmpty(dirPath string) (bool, error) {
 	return len(entries) == 0, nil
 }
 
-func DeleteIfEmpty(path string, confirm bool, indent int) error {
+func DeleteIfEmpty(path string, prompt bool, indent int) error {
 	empty, err := FolderEmpty(path)
 	if err != nil {
 		return fmt.Errorf("error checking if folder is empty: %w", err)
 	}
 
 	if empty {
-		if err := RunCommand(indent, confirm, "rmdir", "-v", path); err != nil {
+		if err := RunCommand(indent, prompt, "rmdir", "-v", path); err != nil {
 			return fmt.Errorf("error deleting empty folder: %w", err)
 		}
 	}
@@ -108,12 +104,12 @@ func DeleteIfEmpty(path string, confirm bool, indent int) error {
 	return nil
 }
 
-func DeleteIfEmptyOrOnlyNfo(path string, confirm bool, indent int) error {
-	return DeleteIfEmptyOrOnlyJunk(path, confirm, indent)
+func DeleteIfEmptyOrOnlyNfo(path string, prompt bool, indent int) error {
+	return DeleteIfEmptyOrOnlyJunk(path, prompt, indent)
 }
 
 // DeleteIfEmptyOrOnlyJunk deletes nfo and image files, then deletes folder if empty
-func DeleteIfEmptyOrOnlyJunk(path string, confirm bool, indent int) error {
+func DeleteIfEmptyOrOnlyJunk(path string, prompt bool, indent int) error {
 	srcContents, err := ListFilesAndFolders(path)
 	if err != nil {
 		return fmt.Errorf("error listing source content: %w", err)
@@ -131,14 +127,14 @@ func DeleteIfEmptyOrOnlyJunk(path string, confirm bool, indent int) error {
 	for _, contentPath := range srcContents {
 		ext := strings.ToLower(filepath.Ext(contentPath))
 		if junkExtensions[ext] {
-			if err := RunCommand(indent, confirm, "rm", "-v", contentPath); err != nil {
+			if err := RunCommand(indent, prompt, "rm", "-v", contentPath); err != nil {
 				return fmt.Errorf("error deleting junk file: %w", err)
 			}
 		}
 	}
 
 	// delete source folder if empty
-	if err := DeleteIfEmpty(path, confirm, indent); err != nil {
+	if err := DeleteIfEmpty(path, prompt, indent); err != nil {
 		return fmt.Errorf("error deleting source folder: %w", err)
 	}
 

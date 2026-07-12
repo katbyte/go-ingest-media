@@ -65,13 +65,13 @@ func (c Content) Exists() bool {
 }
 
 // MoveFolder moves this content folder to the given destination path
-func (c Content) MoveFolder(destPath string, confirm bool, indent int) error {
-	return ktio.RunCommand(indent, confirm, "mv", "-v", c.Path(), destPath)
+func (c Content) MoveFolder(destPath string, prompt bool, indent int) error {
+	return ktio.RunCommand(indent, prompt, "mv", "-v", c.Path(), destPath)
 }
 
 // DeleteFolder deletes this content folder
-func (c Content) DeleteFolder(confirm bool, indent int) error {
-	return ktio.RunCommand(indent, confirm, "rm", "-rfv", c.Path())
+func (c Content) DeleteFolder(prompt bool, indent int) error {
+	return ktio.RunCommand(indent, prompt, "rm", "-rfv", c.Path())
 }
 
 // DestPathIn returns what the path would be in the given destination library

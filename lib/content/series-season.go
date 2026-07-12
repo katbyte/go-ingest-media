@@ -40,8 +40,8 @@ func GetSeasons(path string) (map[int]Season, error) {
 	}
 
 	var wg sync.WaitGroup
-	errorChan := make(chan error, len(srcFolders))
-	doneChan := make(chan bool)
+	var firstErr error
+	var errOnce sync.Once
 
 	seasons := make(map[int]Season)
 	var mutex sync.Mutex // Mutex to synchronise access to the seasons map
@@ -58,7 +58,7 @@ func GetSeasons(path string) (map[int]Season, error) {
 			// Updated regex to match folders in the format "SeriesSource Name - s##", "SeriesSource Name - s## (####)", or "SeriesSource Name - s## ()"
 			isSeason, err := regexp.MatchString(`.* - s(\d+)(?: \((\d*)\))?`, f)
 			if err != nil {
-				errorChan <- fmt.Errorf("error matching season folder: %w", err)
+				errOnce.Do(func() { firstErr = fmt.Errorf("error matching season folder: %w", err) })
 				return
 			}
 			if !isSeason {
@@ -77,7 +77,7 @@ func GetSeasons(path string) (map[int]Season, error) {
 
 			// Get the episodes in a season
 			if err := s.LoadEpisodes(); err != nil {
-				errorChan <- fmt.Errorf("error loading episodes: %w", err)
+				errOnce.Do(func() { firstErr = fmt.Errorf("error loading episodes: %w", err) })
 				return
 			}
 
@@ -93,19 +93,13 @@ func GetSeasons(path string) (map[int]Season, error) {
 			mutex.Unlock()
 		}(f)
 	}
-	go func() {
-		wg.Wait()
-		close(doneChan)
-	}()
+	wg.Wait()
 
-	for {
-		select {
-		case err := <-errorChan:
-			return nil, err
-		case <-doneChan:
-			return seasons, nil
-		}
+	if firstErr != nil {
+		return nil, firstErr
 	}
+
+	return seasons, nil
 }
 
 func (s *Season) LoadEpisodes() error {
@@ -193,26 +187,25 @@ func (s *Season) LoadEpisodes() error {
 	return nil
 }
 
-func (s *Season) MoveFolder(confirm bool, indent int, dstPath string) error {
-	return ktio.RunCommand(indent, confirm, "mv", "-v", s.Path, dstPath)
+func (s *Season) MoveFolder(prompt bool, indent int, dstPath string) error {
+	return ktio.RunCommand(indent, prompt, "mv", "-v", s.Path, dstPath)
 }
 
-func (e *Episode) MoveFiles(confirm bool, indent int, dstPath string) error {
+func (e *Episode) MoveFiles(prompt bool, indent int, dstPath string) error {
 	// ensure there is only 1 source video file
 	if len(e.Videos) != 1 {
 		return fmt.Errorf("expected 1 src video file, found %d", len(e.Videos))
 	}
 
-	// movie video file
-	// movie video file
-	if err := ktio.RunCommand(indent, confirm, "mv", "-v", e.Videos[0].Path, dstPath); err != nil {
-		c.Printf("   <red>ERROR:</> moving video: %s\n", err)
+	// move video file
+	if err := ktio.RunCommand(indent, prompt, "mv", "-v", e.Videos[0].Path, dstPath); err != nil {
+		return fmt.Errorf("error moving video: %w", err)
 	}
 
-	return e.MoveExtras(confirm, indent, dstPath)
+	return e.MoveExtras(prompt, indent, dstPath)
 }
 
-func (e *Episode) MoveExtras(confirm bool, indent int, dstPath string) error {
+func (e *Episode) MoveExtras(prompt bool, indent int, dstPath string) error {
 	// move all other files
 	for _, file := range e.OtherFiles {
 		// skip nfo files
@@ -226,8 +219,12 @@ func (e *Episode) MoveExtras(confirm bool, indent int, dstPath string) error {
 			// if multi episode, assume last is the end
 			epNumStr = fmt.Sprintf("%d-%d", e.EpisodeNumbers[0], e.EpisodeNumbers[len(e.EpisodeNumbers)-1])
 		}
-		fmt.Printf("%s --> ", strings.Repeat(" ", indent-len(strconv.Itoa(e.Season))+1+len(epNumStr)))
-		if err := ktio.RunCommand(indent, confirm, "mv", "-v", file, dstPath); err != nil {
+		padLen := indent - len(strconv.Itoa(e.Season)) + 1 + len(epNumStr)
+		if padLen < 0 {
+			padLen = 0
+		}
+		fmt.Printf("%s --> ", strings.Repeat(" ", padLen))
+		if err := ktio.RunCommand(indent, prompt, "mv", "-v", file, dstPath); err != nil {
 			c.Printf("   <red>ERROR:</> moving other file: %s\n", err)
 		}
 	}
@@ -235,9 +232,9 @@ func (e *Episode) MoveExtras(confirm bool, indent int, dstPath string) error {
 	return nil
 }
 
-func (e *Episode) DeleteVideoFiles() {
+func (e *Episode) DeleteVideoFiles(prompt bool) {
 	for _, v := range e.Videos {
-		if err := ktio.RunCommand(0, false, "rm", "-v", v.Path); err != nil {
+		if err := ktio.RunCommand(0, prompt, "rm", "-v", v.Path); err != nil {
 			c.Printf("   <red>ERROR:</> deleting destination video: %s\n", err)
 		}
 	}

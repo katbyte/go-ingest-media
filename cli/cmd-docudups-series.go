@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path"
 	"sort"
 	"strings"
@@ -169,7 +170,7 @@ func processSeriesEpisodes(docu, tv *content.Series) bool {
 		if !docuExists && tvExists {
 			c.Printf("    season <magenta>%d</> - only in TV (%d eps) - moving to docuseries\n", seasonNum, len(tvSeason.Episodes))
 			destPath := docu.Path() + "/"
-			if err := ktio.RunCommand(6, f.Confirm, "mv", "-v", tvSeason.Path, destPath); err != nil {
+			if err := ktio.RunCommand(6, f.Prompt, "mv", "-v", tvSeason.Path, destPath); err != nil {
 				c.Printf("      <red>ERROR:</> moving TV season: %s\n", err)
 			}
 			continue
@@ -210,9 +211,14 @@ func processSeriesEpisodes(docu, tv *content.Series) bool {
 			// Episode only in TV - move to docuseries
 			if !docuEpExists {
 				c.Printf("      S%02dE%02d: <magenta>TV only</> - moving to docuseries\n", seasonNum, epNum)
+				// Ensure the destination season folder exists
+				if err := os.MkdirAll(docuSeason.Path, 0o750); err != nil {
+					c.Printf("        <red>ERROR:</> creating season folder: %s\n", err)
+					continue
+				}
 				for _, v := range tvEp.Videos {
 					destPath := docuSeason.Path + "/"
-					if err := ktio.RunCommand(8, f.Confirm, "mv", "-v", v.Path, destPath); err != nil {
+					if err := ktio.RunCommand(8, f.Prompt, "mv", "-v", v.Path, destPath); err != nil {
 						c.Printf("        <red>ERROR:</> moving TV video: %s\n", err)
 					}
 				}
@@ -230,7 +236,7 @@ func processSeriesEpisodes(docu, tv *content.Series) bool {
 				if docuEp.Videos[0].IsBasicallyTheSameTo(tvEp.Videos[0]) {
 					c.Printf("      S%02dE%02d: <green>SAME</> - deleting TV version\n", seasonNum, epNum)
 					for _, v := range tvEp.Videos {
-						if err := ktio.RunCommand(8, f.Confirm, "rm", "-v", v.Path); err != nil {
+						if err := ktio.RunCommand(8, f.Prompt, "rm", "-v", v.Path); err != nil {
 							c.Printf("        <red>ERROR:</> deleting TV video: %s\n", err)
 						}
 					}
@@ -270,20 +276,20 @@ func processSeriesEpisodes(docu, tv *content.Series) bool {
 			case 'd':
 				// Delete TV version
 				for _, v := range tvEp.Videos {
-					if err := ktio.RunCommand(8, f.Confirm, "rm", "-v", v.Path); err != nil {
+					if err := ktio.RunCommand(8, f.Prompt, "rm", "-v", v.Path); err != nil {
 						c.Printf("        <red>ERROR:</> deleting TV video: %s\n", err)
 					}
 				}
 			case 't':
 				// Delete docuseries version and move TV to docu
 				for _, v := range docuEp.Videos {
-					if err := ktio.RunCommand(8, f.Confirm, "rm", "-v", v.Path); err != nil {
+					if err := ktio.RunCommand(8, f.Prompt, "rm", "-v", v.Path); err != nil {
 						c.Printf("        <red>ERROR:</> deleting docu video: %s\n", err)
 					}
 				}
 				for _, v := range tvEp.Videos {
 					destPath := docuSeason.Path + "/"
-					if err := ktio.RunCommand(8, f.Confirm, "mv", "-v", v.Path, destPath); err != nil {
+					if err := ktio.RunCommand(8, f.Prompt, "mv", "-v", v.Path, destPath); err != nil {
 						c.Printf("        <red>ERROR:</> moving TV video: %s\n", err)
 					}
 				}
@@ -313,13 +319,13 @@ func cleanupEmptySeriesFolders(tv *content.Series) {
 			continue
 		}
 
-		if err := ktio.DeleteIfEmptyOrOnlyNfo(season.Path, f.Confirm, 6); err != nil {
+		if err := ktio.DeleteIfEmptyOrOnlyNfo(season.Path, f.Prompt, 6); err != nil {
 			c.Printf("      <red>ERROR:</> cleaning up TV season: %s\n", err)
 		}
 	}
 
 	// Clean up empty series folder
-	if err := ktio.DeleteIfEmptyOrOnlyNfo(tv.Path(), f.Confirm, 4); err != nil {
+	if err := ktio.DeleteIfEmptyOrOnlyNfo(tv.Path(), f.Prompt, 4); err != nil {
 		c.Printf("    <red>ERROR:</> cleaning up TV series folder: %s\n", err)
 	}
 }

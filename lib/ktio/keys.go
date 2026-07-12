@@ -96,20 +96,25 @@ func GetKey() (*rune, error) {
 	case <-sigChan:
 		// Handling Ctrl-C
 		return nil, errors.New("interrupt received")
-	case key := <-getKeyPress():
-		return key, nil
+	case result := <-getKeyPress():
+		return result.key, result.err
 	}
 }
 
+type keyResult struct {
+	key *rune
+	err error
+}
+
 // getKeyPress captures a key press and returns it through a channel
-func getKeyPress() chan *rune {
-	ch := make(chan *rune)
+func getKeyPress() chan keyResult {
+	ch := make(chan keyResult)
 	go func() {
 		char, _, err := keyboard.GetSingleKey()
 		if err != nil {
-			ch <- nil
+			ch <- keyResult{nil, fmt.Errorf("keyboard error: %w", err)}
 		} else {
-			ch <- &char
+			ch <- keyResult{&char, nil}
 		}
 		close(ch)
 	}()

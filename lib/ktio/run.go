@@ -9,13 +9,12 @@ import (
 	"github.com/gookit/color"
 )
 
-func RunCommand(indent int, confirm bool, command string, args ...string) error {
+func RunCommand(indent int, prompt bool, command string, args ...string) error {
 	color.Printf("  <darkGray>%s %s</>", command, strings.Join(args, " "))
 
-	fields := strings.Fields(command)
-	cmd := exec.Command(fields[0], args...) //nolint:gosec
+	cmd := exec.Command(command, args...) //nolint:gosec
 
-	if confirm {
+	if prompt {
 		color.Printf(" <lightYellow> CONFIRM y/n: </>")
 		y, err := Confirm()
 		fmt.Println()

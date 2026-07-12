@@ -8,7 +8,7 @@ import (
 )
 
 type FlagData struct {
-	Confirm        bool
+	Prompt         bool
 	IgnoreExisting bool
 }
 
@@ -16,12 +16,12 @@ func configureFlags(root *cobra.Command) error {
 	flags := FlagData{}
 	pflags := root.PersistentFlags()
 
-	pflags.BoolVarP(&flags.Confirm, "confirm", "c", false, "")
-	pflags.BoolVarP(&flags.IgnoreExisting, "ignore-existing", "i", false, "")
+	pflags.BoolVarP(&flags.Prompt, "prompt", "p", false, "prompt for confirmation before each file operation")
+	pflags.BoolVarP(&flags.IgnoreExisting, "ignore-existing", "i", false, "skip items that already exist at the destination")
 
 	// binding map for viper/pflag -> env
 	m := map[string]string{
-		"confirm":         "INGEST_CONFIRM",
+		"prompt":          "INGEST_PROMPT",
 		"ignore-existing": "INGEST_IGNORE_EXISTING",
 	}
 
@@ -42,7 +42,7 @@ func configureFlags(root *cobra.Command) error {
 
 func GetFlags() FlagData {
 	return FlagData{
-		Confirm:        viper.GetBool("confirm"),
+		Prompt:         viper.GetBool("prompt"),
 		IgnoreExisting: viper.GetBool("ignore-existing"),
 	}
 }

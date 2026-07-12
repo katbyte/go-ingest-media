@@ -49,7 +49,7 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 		// if destination doesn't exist, just move folder
 		if !ktio.PathExists(destPath) {
 			c.Printf("<darkGray>%d/%d</> <white>%s</> --> <green>%s</>", i, nSeries, s.Folder, path.Base(destPath))
-			if err := s.MoveFolder(destPath, f.Confirm, 4); err != nil {
+			if err := s.MoveFolder(destPath, f.Prompt, 4); err != nil {
 				c.Printf(" <red>ERROR:</> moving folder: %s\n\n", err)
 			}
 			fmt.Println()
@@ -91,7 +91,7 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 			ds, exists := s.DstSeasons[ss.Number]
 			if !exists {
 				c.Printf("%s   season <green>%d</> --> ", intentStr, seasonNum)
-				if err := ss.MoveFolder(f.Confirm, indent+4, destPath+"/"); err != nil {
+				if err := ss.MoveFolder(f.Prompt, indent+4, destPath+"/"); err != nil {
 					c.Printf(" <red>ERROR:</> moving season: %s\n\n", err)
 				}
 				continue
@@ -157,7 +157,7 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 
 					for idx, v := range se.Videos {
 						if idx != keepIdx {
-							if err := ktio.RunCommand(indent+6, f.Confirm, "rm", "-v", v.Path); err != nil {
+							if err := ktio.RunCommand(indent+6, f.Prompt, "rm", "-v", v.Path); err != nil {
 								c.Printf("      <red>ERROR:</> deleting source video: %s\n", err)
 							}
 						}
@@ -172,7 +172,7 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 				if !exists {
 					// move episode files
 					c.Printf("%s     <green>%dx%d</> --> ", intentStr, seasonNum, episodeNum)
-					if err := se.MoveFiles(f.Confirm, indent+10, ds.Path+"/"); err != nil {
+					if err := se.MoveFiles(f.Prompt, indent+10, ds.Path+"/"); err != nil {
 						c.Printf("      <red>ERROR:</> moving files: %s\n", err)
 					}
 					continue
@@ -185,7 +185,7 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 					for _, file := range se.OtherFiles {
 						if strings.HasSuffix(file, ".nfo") {
 							c.Printf("%s           --> nfo, deleting\n", intentStr)
-							if err := ktio.RunCommand(indent+10, f.Confirm, "rm", "-v", file); err != nil {
+							if err := ktio.RunCommand(indent+10, f.Prompt, "rm", "-v", file); err != nil {
 								c.Printf("          <red>ERROR:</> deleting nfo: %s\n", err)
 							}
 						} else {
@@ -196,7 +196,7 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 								c.Printf(" <red>ERROR:</>%s\n", err)
 								continue
 							} else if yes {
-								if err := ktio.RunCommand(indent+10, f.Confirm, "mv", "-v", file, ds.Path+"/"); err != nil {
+								if err := ktio.RunCommand(indent+10, f.Prompt, "mv", "-v", file, ds.Path+"/"); err != nil {
 									c.Printf("          <red>ERROR:</> moving file: %s\n", err)
 								}
 							} else {
@@ -212,7 +212,7 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 
 				if len(de.Videos) == 0 {
 					c.Printf("%s     <red>%dx%d</> --> <yellow>WARNING</> - dst has no video file, moving source\n", intentStr, seasonNum, episodeNum)
-					if err := se.MoveFiles(f.Confirm, indent+10, ds.Path+"/"); err != nil {
+					if err := se.MoveFiles(f.Prompt, indent+10, ds.Path+"/"); err != nil {
 						c.Printf("      <red>ERROR:</> moving files: %s\n", err)
 					}
 					continue
@@ -230,11 +230,11 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 
 				if isSame {
 					c.Printf("%s     <green>%dx%d</> --> SAME - deleting source and syncing extras\n", intentStr, seasonNum, episodeNum)
-					if err := ktio.RunCommand(indent+10, f.Confirm, "rm", "-v", srcVideo.Path); err != nil {
+					if err := ktio.RunCommand(indent+10, f.Prompt, "rm", "-v", srcVideo.Path); err != nil {
 						c.Printf("      <red>ERROR:</> deleting source video: %s\n", err)
 					}
 					// move extras
-					if err := se.MoveExtras(f.Confirm, indent+10, ds.Path+"/"); err != nil {
+					if err := se.MoveExtras(f.Prompt, indent+10, ds.Path+"/"); err != nil {
 						c.Printf("      <red>ERROR:</> moving extras: %s\n", err)
 					}
 					continue
@@ -286,13 +286,13 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 					// delete de files
 					fmt.Println()
 					for _, v := range de.Videos {
-						if err := ktio.RunCommand(4, f.Confirm, "rm", "-v", v.Path); err != nil {
+						if err := ktio.RunCommand(4, f.Prompt, "rm", "-v", v.Path); err != nil {
 							c.Printf("    <red>ERROR:</> deleting destination video: %s\n", err)
 						}
 					}
 
 					// move all se files
-					if err := se.MoveFiles(f.Confirm, 4, ds.Path+"/"); err != nil {
+					if err := se.MoveFiles(f.Prompt, 4, ds.Path+"/"); err != nil {
 						c.Printf("    <red>ERROR:</> moving files: %s\n", err)
 					}
 
@@ -306,7 +306,7 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 						if idx == keepIdx {
 							newDst = append(newDst, v)
 						} else {
-							if err := ktio.RunCommand(4, f.Confirm, "rm", "-v", v.Path); err != nil {
+							if err := ktio.RunCommand(4, f.Prompt, "rm", "-v", v.Path); err != nil {
 								c.Printf("    <red>ERROR:</> deleting destination video: %s\n", err)
 							}
 						}
@@ -316,7 +316,7 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 					ds.Episodes[episodeNum] = de
 
 					// delete the source video
-					if err := ktio.RunCommand(4, f.Confirm, "rm", "-v", srcVideo.Path); err != nil {
+					if err := ktio.RunCommand(4, f.Prompt, "rm", "-v", srcVideo.Path); err != nil {
 						c.Printf("    <red>ERROR:</> deleting source video: %s\n", err)
 					}
 
@@ -326,7 +326,7 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 					skipAll = false
 					fallthrough
 				case 'd':
-					if err := ktio.RunCommand(4, f.Confirm, "rm", "-v", srcVideo.Path); err != nil {
+					if err := ktio.RunCommand(4, f.Prompt, "rm", "-v", srcVideo.Path); err != nil {
 						c.Printf("    <red>ERROR:</> deleting source video: %s\n", err)
 					}
 				case 'S':
@@ -343,7 +343,7 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 			}
 
 			// if empty season (or only nfo files) remove it
-			if err := ktio.DeleteIfEmptyOrOnlyNfo(ss.Path, f.Confirm, indent+6); err != nil {
+			if err := ktio.DeleteIfEmptyOrOnlyNfo(ss.Path, f.Prompt, indent+6); err != nil {
 				c.Printf("      <red>ERROR:</> cleaning up season folder: %s\n", err)
 			}
 			fmt.Println()
@@ -363,14 +363,14 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 		for _, sub := range []string{"specials", "extras"} {
 			subPath := fmt.Sprintf("%s/%s", s.Path(), sub)
 			if ktio.PathExists(subPath) {
-				if err := ktio.DeleteIfEmptyOrOnlyNfo(subPath, f.Confirm, indent); err != nil {
+				if err := ktio.DeleteIfEmptyOrOnlyNfo(subPath, f.Prompt, indent); err != nil {
 					c.Printf(" <red>ERROR:</> deleting %s folder: %s\n", sub, err)
 				}
 			}
 		}
 
 		// if empty series folder (or only nfo files) then delete it
-		if err := ktio.DeleteIfEmptyOrOnlyNfo(s.Path(), f.Confirm, indent); err != nil {
+		if err := ktio.DeleteIfEmptyOrOnlyNfo(s.Path(), f.Prompt, indent); err != nil {
 			c.Printf(" <red>ERROR:</> deleting series folder: %s\n", err)
 		}
 	}
@@ -391,7 +391,7 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 
 		if y {
 			for _, path := range pathsToDelete {
-				if err := ktio.RunCommand(4, f.Confirm, "rm", "-rfv", path); err != nil {
+				if err := ktio.RunCommand(4, f.Prompt, "rm", "-rfv", path); err != nil {
 					c.Printf("    <red>ERROR:</> deleting path: %s\n", err)
 				}
 			}
@@ -430,7 +430,7 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 				continue
 			}
 			if empty {
-				if err := ktio.RunCommand(4, f.Confirm, "rmdir", "-v", ss.Path); err != nil {
+				if err := ktio.RunCommand(4, f.Prompt, "rmdir", "-v", ss.Path); err != nil {
 					c.Printf("    <red>ERROR:</> deleting season folder: %s\n", err)
 				}
 			}
@@ -441,7 +441,7 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 			continue
 		}
 		if empty {
-			if err := ktio.RunCommand(4, f.Confirm, "rmdir", "-v", s.Path()); err != nil {
+			if err := ktio.RunCommand(4, f.Prompt, "rmdir", "-v", s.Path()); err != nil {
 				c.Printf("    <red>ERROR:</> deleting source folder: %s\n", err)
 			}
 			fmt.Println()
@@ -483,7 +483,7 @@ func ProcessSpecialFiles(indent int, s content.Series, seriesDestPath, folder st
 		}
 
 		if shouldMove {
-			if err := ktio.RunCommand(indent+6, f.Confirm, "mv", "-v", file, dstPath+"/"); err != nil {
+			if err := ktio.RunCommand(indent+6, f.Prompt, "mv", "-v", file, dstPath+"/"); err != nil {
 				return fmt.Errorf("error moving file: %w", err)
 			}
 		}
@@ -495,7 +495,7 @@ func ProcessSpecialFiles(indent int, s content.Series, seriesDestPath, folder st
 	}
 	if empty {
 		c.Printf("%s   <green>EMPTY</> - removing directory: ", strings.Repeat(" ", indent))
-		if err := ktio.RunCommand(indent+4, f.Confirm, "rmdir", "-v", dstPath); err != nil {
+		if err := ktio.RunCommand(indent+4, f.Prompt, "rmdir", "-v", dstPath); err != nil {
 			c.Printf("    <red>ERROR:</> deleting empty destination: %s\n", err)
 		}
 		fmt.Println()

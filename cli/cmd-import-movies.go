@@ -48,7 +48,7 @@ func ProcessMovies(id string, mapping content.LibraryMapping) error {
 		// if destination doesn't exist, just move folder
 		if !ktio.PathExists(destPath) {
 			c.Printf("<darkGray>%d/%d</> <white>%s</> --> <green>%s</>", i, nMovies, m.Folder, path.Base(destPath))
-			if err := m.MoveFolder(destPath, f.Confirm, 4); err != nil {
+			if err := m.MoveFolder(destPath, f.Prompt, 4); err != nil {
 				c.Printf(" <red>ERROR:</> moving folder: %s\n", err)
 			}
 			continue
@@ -74,7 +74,7 @@ func ProcessMovies(id string, mapping content.LibraryMapping) error {
 		if len(m.Videos) == 0 {
 			c.Printf("  <yellow>WARNING</> - no source videos\n")
 
-			if err := ktio.DeleteIfEmptyOrOnlyNfo(m.Path(), f.Confirm, 4); err != nil {
+			if err := ktio.DeleteIfEmptyOrOnlyNfo(m.Path(), f.Prompt, 4); err != nil {
 				c.Printf("   <red>ERROR:</> deleting source folder: %s\n", err)
 				continue
 			}
@@ -119,7 +119,7 @@ func ProcessMovies(id string, mapping content.LibraryMapping) error {
 
 			for idx, v := range m.Videos {
 				if idx != keepIdx {
-					if err := ktio.RunCommand(4, f.Confirm, "rm", "-v", v.Path); err != nil {
+					if err := ktio.RunCommand(4, f.Prompt, "rm", "-v", v.Path); err != nil {
 						c.Printf("   <red>ERROR:</> deleting source video: %s\n", err)
 					}
 				}
@@ -129,7 +129,7 @@ func ProcessMovies(id string, mapping content.LibraryMapping) error {
 
 		if len(dstVideos) == 0 {
 			c.Printf("  <yellow>WARNING</> - destination has no video files\n")
-			if err := m.MoveFilesTo(destPath, f.Confirm, 4); err != nil {
+			if err := m.MoveFilesTo(destPath, f.Prompt, 4); err != nil {
 				c.Printf("   <red>ERROR:</> moving files: %s\n", err)
 			}
 			continue
@@ -187,12 +187,12 @@ func ProcessMovies(id string, mapping content.LibraryMapping) error {
 		case 'y':
 			// delete destination video files first
 			for _, v := range dstVideos {
-				if err := ktio.RunCommand(4, f.Confirm, "rm", "-v", v.Path); err != nil {
+				if err := ktio.RunCommand(4, f.Prompt, "rm", "-v", v.Path); err != nil {
 					c.Printf("   <red>ERROR:</> deleting destination video: %s\n", err)
 				}
 			}
 			// move source files to destination
-			if err := m.MoveFilesTo(destPath, f.Confirm, 4); err != nil {
+			if err := m.MoveFilesTo(destPath, f.Prompt, 4); err != nil {
 				c.Printf("   <red>ERROR:</> moving files: %s\n", err)
 			}
 		case 's':
@@ -202,7 +202,7 @@ func ProcessMovies(id string, mapping content.LibraryMapping) error {
 			// delete destination video files except the selected one
 			for idx, v := range dstVideos {
 				if idx != keepIdx {
-					if err := ktio.RunCommand(4, f.Confirm, "rm", "-v", v.Path); err != nil {
+					if err := ktio.RunCommand(4, f.Prompt, "rm", "-v", v.Path); err != nil {
 						c.Printf("   <red>ERROR:</> deleting destination video: %s\n", err)
 					}
 				}
@@ -232,7 +232,7 @@ func ProcessMovies(id string, mapping content.LibraryMapping) error {
 
 		if y {
 			for _, path := range srcPathsToDelete {
-				if err := ktio.RunCommand(4, f.Confirm, "rm", "-rfv", path); err != nil {
+				if err := ktio.RunCommand(4, f.Prompt, "rm", "-rfv", path); err != nil {
 					c.Printf("   <red>ERROR:</> deleting source folder: %s\n", err)
 				}
 			}

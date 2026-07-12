@@ -88,7 +88,7 @@ func FindAndCombineDocu(docuLibrary, movieLibrary *content.Library) error {
 		if len(docuEntry.Videos) == 1 && len(movieEntry.Videos) == 1 {
 			if docuEntry.Videos[0].IsBasicallyTheSameTo(movieEntry.Videos[0]) {
 				c.Printf("  <green>SAME</> - keeping documentary, deleting movie copy\n")
-				if err := movieEntry.DeleteFolder(f.Confirm, 4); err != nil {
+				if err := movieEntry.DeleteFolder(f.Prompt, 4); err != nil {
 					c.Printf("  <red>ERROR:</> deleting movie folder: %s\n", err)
 				}
 				continue
@@ -127,21 +127,21 @@ func FindAndCombineDocu(docuLibrary, movieLibrary *content.Library) error {
 		case 'd':
 			// Keep documentary, delete movie copy
 			c.Printf("  <cyan>Keeping documentary, deleting movie copy...</>\n")
-			if err := movieEntry.DeleteFolder(f.Confirm, 4); err != nil {
+			if err := movieEntry.DeleteFolder(f.Prompt, 4); err != nil {
 				c.Printf("  <red>ERROR:</> deleting movie folder: %s\n", err)
 			}
 
 		case 'm':
 			// Keep movie, delete existing docu and move movie to documentary folder
 			c.Printf("  <magenta>Deleting existing documentary...</>\n")
-			if err := docuEntry.DeleteFolder(f.Confirm, 4); err != nil {
+			if err := docuEntry.DeleteFolder(f.Prompt, 4); err != nil {
 				c.Printf("  <red>ERROR:</> deleting docu folder: %s\n", err)
 				continue
 			}
 			// Move movie to documentary folder
 			destPath := filepath.Join(docuLibrary.Path, docuName)
 			c.Printf("  <magenta>Moving movie to documentary folder...</>\n")
-			if err := ktio.RunCommand(4, f.Confirm, "mv", "-v", movieEntry.Path(), destPath); err != nil {
+			if err := ktio.RunCommand(4, f.Prompt, "mv", "-v", movieEntry.Path(), destPath); err != nil {
 				c.Printf("  <red>ERROR:</> moving movie folder: %s\n", err)
 			}
 
