@@ -15,9 +15,22 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// clearLine overwrites the current line with spaces
-func clearLine() {
-	fmt.Printf("\r%s\r", strings.Repeat(" ", 120))
+// docuItem represents a documentary found by the background scanner
+type docuItem struct {
+	index   int
+	total   int
+	folder  string
+	path    string
+	letter  string
+	nfoPath string
+	nfo     *content.NfoFile
+}
+
+// moveResult holds the output of a background move operation
+type moveResult struct {
+	folder string
+	output string
+	err    error
 }
 
 // queryAI shells out to agy to ask about a title and returns the response
@@ -27,7 +40,7 @@ func queryAI(name string, isSeries bool) (string, error) {
 		kind = "series"
 	}
 
-	prompt := fmt.Sprintf("Why is the %s '%s' classified as a documentary? Why might it not be considered one? Please answer concisely in a single short paragraph.", kind, name)
+	prompt := fmt.Sprintf("Why is the %s '%s' classified as a documentary? Why might it not be considered one? Please answer each question on its own line with a blank inbetween in 1-2 sentences, then on the 3rd line make your own judgement call.", kind, name)
 
 	cmd := exec.Command("agy", "-p", prompt) //nolint:gosec
 	output, err := cmd.CombinedOutput()
@@ -38,236 +51,325 @@ func queryAI(name string, isSeries bool) (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
-// ExtractDocuMovies scans the movies library for documentaries via NFO files
-// and moves them to the documentary torrent-sorted import folder (m.docu)
-func ExtractDocuMovies(movieLib, docuImportLib *content.Library) error {
-	f := GetFlags()
-
-	// Get all movies from the library
-	movies, err := movieLib.Movies(func(folder string, err error) {
-		c.Printf("  %s --> <red>ERROR:</> %s\n", path.Base(folder), err)
+// scanMoviesForDocus scans the movie library in the background, sending found documentaries to a channel
+func scanMoviesForDocus(lib *content.Library, sb *ktio.StatusBar, logChan chan<- string) (<-chan docuItem, int, error) {
+	movies, err := lib.Movies(func(folder string, err error) {
+		logChan <- c.Sprintf("  %s --> <red>ERROR:</> %s", path.Base(folder), err)
 	})
 	if err != nil {
-		return fmt.Errorf("error loading movies: %w", err)
+		return nil, 0, fmt.Errorf("error loading movies: %w", err)
 	}
 
 	sort.Slice(movies, func(i, j int) bool {
 		return movies[i].Letter+"/"+movies[i].Folder < movies[j].Letter+"/"+movies[j].Folder
 	})
 
-	found := 0
-	moved := 0
 	total := len(movies)
+	ch := make(chan docuItem, 25)
 
-	for i, m := range movies {
-		// Show progress for current folder
-		c.Printf("\r<darkGray>%d/%d scanning %s/%s</> ", i+1, total, m.Letter, m.Folder)
+	go func() {
+		defer close(ch)
+		for i := range movies {
+			sb.UpdateScan(c.Sprintf("<darkGray>scanning</> <cyan>%d</>/<darkGray>%d</> <darkGray>%s/%s</>", i+1, total, movies[i].Letter, movies[i].Folder))
 
-		// Find NFO file in movie folder
-		nfoPath, err := content.FindNfoFile(m.Path())
-		if err != nil {
-			clearLine()
-			c.Printf("<darkGray>%d/%d</> <white>%s</> --> <red>ERROR:</> finding nfo: %s\n", i+1, total, m.Folder, err)
-			continue
-		}
-		if nfoPath == "" {
-			continue // no nfo file
-		}
-
-		// Parse NFO
-		nfo, err := content.ReadNfo(nfoPath)
-		if err != nil {
-			clearLine()
-			c.Printf("<darkGray>%d/%d</> <white>%s</> --> <red>ERROR:</> reading nfo: %s\n", i+1, total, m.Folder, err)
-			continue
-		}
-
-		if !nfo.IsDocumentary() {
-			continue
-		}
-
-		found++
-		clearLine()
-
-		// Print documentary info
-		c.Printf("<cyan>%d</>/<darkGray>%d</> <white>%s</> <darkGray>%s</>\n", i+1, total, m.Folder, m.Path())
-		if url := nfo.TmdbURL(false); url != "" {
-			c.Printf("  <darkGray>tmdb:   </> %s\n", url)
-		}
-		c.Printf("  <darkGray>genres: </> %s\n", strings.Join(nfo.Genres, ", "))
-		if nfo.Tagline != "" {
-			c.Printf("  <darkGray>tagline:</> %s\n", nfo.Tagline)
-		}
-		if nfo.Outline != "" {
-			c.Printf("  <darkGray>outline:</> %s\n", nfo.Outline)
-		}
-		if nfo.Plot != "" {
-			c.Printf("  <darkGray>plot:   </> %s\n", nfo.Plot)
-		}
-
-		destPath := filepath.Join(docuImportLib.Path, m.Folder)
-		c.Printf("  --> <green>%s</>\n", destPath)
-
-		// Selection loop (re-asks after AI query)
-		for {
-			c.Printf("  [m]ove/[a]ccept | [s]kip | [q]uery ai | e[x]it: ")
-			selection, err := ktio.GetSelection('m', 'a', 's', 'q', 'x')
-			fmt.Println()
+			nfoPath, err := content.FindNfoFile(movies[i].Path())
 			if err != nil {
-				c.Printf("  <red>ERROR:</> %s\n", err)
-				break
+				logChan <- c.Sprintf("<darkGray>%d/%d</> <white>%s</> --> <red>ERROR:</> finding nfo: %s", i+1, total, movies[i].Folder, err)
+				continue
+			}
+			if nfoPath == "" {
+				continue
 			}
 
-			switch selection {
-			case 'm', 'a':
-				if err := m.MoveFolder(destPath, f.Prompt, 4); err != nil {
-					c.Printf("  <red>ERROR:</> moving folder: %s\n", err)
-				} else {
-					moved++
-				}
-			case 's':
-				c.Printf("  <darkGray>skipping... removing documentary from genres...</>")
-				if err := content.RemoveDocumentaryGenre(nfoPath); err != nil {
-					c.Printf(" <red>ERROR:</> %s\n", err)
-				} else {
-					c.Printf(" <darkGray>done</>\n")
-				}
-			case 'q':
-				c.Printf("  <darkGray>querying AI...</>\n")
-				result, err := queryAI(m.Folder, false)
-				if err != nil {
-					c.Printf("  <red>ERROR:</> %s\n", err)
-				} else {
-					c.Printf("  <lightYellow>AI:</> %s\n", result)
-				}
-				continue // re-ask
-			case 'x':
-				return errors.New("quitting")
+			nfo, err := content.ReadNfo(nfoPath)
+			if err != nil {
+				logChan <- c.Sprintf("<darkGray>%d/%d</> <white>%s</> --> <red>ERROR:</> reading nfo: %s", i+1, total, movies[i].Folder, err)
+				continue
 			}
-			break
+
+			if !nfo.IsDocumentary() {
+				continue
+			}
+
+			ch <- docuItem{
+				index:   i,
+				total:   total,
+				folder:  movies[i].Folder,
+				path:    movies[i].Path(),
+				letter:  movies[i].Letter,
+				nfoPath: nfoPath,
+				nfo:     nfo,
+			}
 		}
-		fmt.Println()
-	}
+		sb.UpdateScan(c.Sprintf("<green>scan complete</> <darkGray>(%d movies scanned)</>", total))
+	}()
 
-	clearLine()
-	c.Printf("<yellow>Found %d documentaries, moved %d</> out of %d movies\n", found, moved, total)
-
-	return nil
+	return ch, total, nil
 }
 
-// ExtractDocuSeries scans the TV library for docuseries via NFO files
-// and moves them to the docuseries torrent-sorted import folder (s.docu)
-func ExtractDocuSeries(tvLib, docuImportLib *content.Library) error {
-	f := GetFlags()
-
-	// Get all series from the library
-	seriesList, err := tvLib.Series(func(folder string, err error) {
-		c.Printf("  %s --> <red>ERROR:</> %s\n", path.Base(folder), err)
+// scanSeriesForDocus scans the TV library in the background, sending found docuseries to a channel
+func scanSeriesForDocus(lib *content.Library, sb *ktio.StatusBar, logChan chan<- string) (<-chan docuItem, int, error) {
+	seriesList, err := lib.Series(func(folder string, err error) {
+		logChan <- c.Sprintf("  %s --> <red>ERROR:</> %s", path.Base(folder), err)
 	})
 	if err != nil {
-		return fmt.Errorf("error loading series: %w", err)
+		return nil, 0, fmt.Errorf("error loading series: %w", err)
 	}
 
 	sort.Slice(seriesList, func(i, j int) bool {
 		return seriesList[i].Letter+"/"+seriesList[i].Folder < seriesList[j].Letter+"/"+seriesList[j].Folder
 	})
 
-	found := 0
-	moved := 0
 	total := len(seriesList)
+	ch := make(chan docuItem, 25)
 
-	for i, s := range seriesList {
-		// Show progress for current folder
-		c.Printf("\r<darkGray>%d/%d scanning %s/%s</> ", i+1, total, s.Letter, s.Folder)
+	go func() {
+		defer close(ch)
+		for i := range seriesList {
+			sb.UpdateScan(c.Sprintf("<darkGray>scanning</> <cyan>%d</>/<darkGray>%d</> <darkGray>%s/%s</>", i+1, total, seriesList[i].Letter, seriesList[i].Folder))
 
-		// Find NFO file in series folder
-		nfoPath, err := content.FindNfoFile(s.Path())
-		if err != nil {
-			clearLine()
-			c.Printf("<darkGray>%d/%d</> <white>%s</> --> <red>ERROR:</> finding nfo: %s\n", i+1, total, s.Folder, err)
-			continue
+			nfoPath, err := content.FindNfoFile(seriesList[i].Path())
+			if err != nil {
+				logChan <- c.Sprintf("<darkGray>%d/%d</> <white>%s</> --> <red>ERROR:</> finding nfo: %s", i+1, total, seriesList[i].Folder, err)
+				continue
+			}
+			if nfoPath == "" {
+				continue
+			}
+
+			nfo, err := content.ReadNfo(nfoPath)
+			if err != nil {
+				logChan <- c.Sprintf("<darkGray>%d/%d</> <white>%s</> --> <red>ERROR:</> reading nfo: %s", i+1, total, seriesList[i].Folder, err)
+				continue
+			}
+
+			if !nfo.IsDocumentary() {
+				continue
+			}
+
+			ch <- docuItem{
+				index:   i,
+				total:   total,
+				folder:  seriesList[i].Folder,
+				path:    seriesList[i].Path(),
+				letter:  seriesList[i].Letter,
+				nfoPath: nfoPath,
+				nfo:     nfo,
+			}
 		}
-		if nfoPath == "" {
-			continue // no nfo file
-		}
+		sb.UpdateScan(c.Sprintf("<green>scan complete</> <darkGray>(%d series scanned)</>", total))
+	}()
 
-		// Parse NFO
-		nfo, err := content.ReadNfo(nfoPath)
-		if err != nil {
-			clearLine()
-			c.Printf("<darkGray>%d/%d</> <white>%s</> --> <red>ERROR:</> reading nfo: %s\n", i+1, total, s.Folder, err)
-			continue
-		}
+	return ch, total, nil
+}
 
-		if !nfo.IsDocumentary() {
-			continue
-		}
+// moveAction represents a queued move request
+type moveAction struct {
+	srcPath  string
+	destPath string
+	folder   string
+}
 
+// printMoveResult displays the output of a completed move
+func printMoveResult(result moveResult) {
+	if result.err != nil {
+		c.Printf("  <red>ERROR:</> moving %s: %s\n", result.folder, result.err)
+	}
+	if result.output != "" {
+		for _, line := range strings.Split(strings.TrimSpace(result.output), "\n") {
+			if line != "" {
+				fmt.Printf("    %s\n", line)
+			}
+		}
+	}
+}
+
+// flushMoveResults prints any completed move results without blocking
+func flushMoveResults(ch <-chan moveResult, pending *int, sb *ktio.StatusBar) {
+	for {
+		select {
+		case result := <-ch:
+			*pending--
+			printMoveResult(result)
+			if *pending == 0 {
+				sb.UpdateMove("")
+			}
+		default:
+			return
+		}
+	}
+}
+
+// drainMoveResults blocks until all pending moves are complete and prints their results
+func drainMoveResults(ch <-chan moveResult, pending *int, sb *ktio.StatusBar) {
+	for *pending > 0 {
+		result := <-ch
+		*pending--
+		printMoveResult(result)
+	}
+	sb.UpdateMove("")
+}
+
+// startMoveWorker starts a background goroutine that processes moves sequentially from a queue
+func startMoveWorker(queue <-chan moveAction, results chan<- moveResult, sb *ktio.StatusBar) {
+	go func() {
+		for action := range queue {
+			queued := len(queue) + 1 // +1 for current
+			sb.UpdateMove(c.Sprintf("<yellow>moving (%d) %s...</>", queued, action.folder))
+
+			cmd := exec.Command("mv", "-v", action.srcPath, action.destPath) //nolint:gosec
+			output, cmdErr := cmd.CombinedOutput()
+
+			if cmdErr != nil {
+				sb.UpdateMove(c.Sprintf("<red>ERROR moving %s</>", action.folder))
+			} else {
+				sb.UpdateMove(c.Sprintf("<green>moved %s ✓</>", action.folder))
+			}
+
+			results <- moveResult{folder: action.folder, output: string(output), err: cmdErr}
+		}
+		close(results)
+	}()
+}
+
+// processDocuItems is the main interactive loop for presenting documentaries to the user
+func processDocuItems(docuChan <-chan docuItem, destLib *content.Library, isSeries bool, sb *ktio.StatusBar, logChan <-chan string) (found, moved int, err error) {
+	moveQueueChan := make(chan moveAction, 100)
+	moveResultChan := make(chan moveResult, 100)
+	pendingMoves := 0
+
+	// Start the move worker
+	startMoveWorker(moveQueueChan, moveResultChan, sb)
+
+	for item := range docuChan {
 		found++
-		clearLine()
+
+		// Flush any buffered log messages from scanner
+		for {
+			select {
+			case msg := <-logChan:
+				fmt.Println(msg)
+			default:
+				goto doneFlushingLogs
+			}
+		}
+	doneFlushingLogs:
+
+		// Flush any completed move results (prints mv output from previous moves)
+		flushMoveResults(moveResultChan, &pendingMoves, sb)
 
 		// Print documentary info
-		c.Printf("<cyan>%d</>/<darkGray>%d</> <white>%s</> <darkGray>%s</>\n", i+1, total, s.Folder, s.Path())
-		if url := nfo.TmdbURL(true); url != "" {
+		fmt.Println()
+		c.Printf("<cyan>%d</>/<darkGray>%d</> <white>%s</> <darkGray>%s</>\n", item.index+1, item.total, item.folder, item.path)
+		if url := item.nfo.TmdbURL(isSeries); url != "" {
 			c.Printf("  <darkGray>tmdb:   </> %s\n", url)
 		}
-		c.Printf("  <darkGray>genres: </> %s\n", strings.Join(nfo.Genres, ", "))
-		if nfo.Tagline != "" {
-			c.Printf("  <darkGray>tagline:</> %s\n", nfo.Tagline)
+		c.Printf("  <darkGray>genres: </> %s\n", strings.Join(item.nfo.Genres, ", "))
+		if item.nfo.Tagline != "" {
+			c.Printf("  <darkGray>tagline:</> %s\n", item.nfo.Tagline)
 		}
-		if nfo.Outline != "" {
-			c.Printf("  <darkGray>outline:</> %s\n", nfo.Outline)
+		if item.nfo.Outline != "" {
+			c.Printf("  <darkGray>outline:</> %s\n", item.nfo.Outline)
 		}
-		if nfo.Plot != "" {
-			c.Printf("  <darkGray>plot:   </> %s\n", nfo.Plot)
+		if item.nfo.Plot != "" {
+			c.Printf("  <darkGray>plot:   </> %s\n", item.nfo.Plot)
 		}
 
-		destPath := filepath.Join(docuImportLib.Path, s.Folder)
+		destPath := filepath.Join(destLib.Path, item.folder)
 		c.Printf("  --> <green>%s</>\n", destPath)
 
 		// Selection loop (re-asks after AI query)
-		for {
+		decided := false
+		for !decided {
 			c.Printf("  [m]ove/[a]ccept | [s]kip | [q]uery ai | e[x]it: ")
-			selection, err := ktio.GetSelection('m', 'a', 's', 'q', 'x')
+			selection, selErr := ktio.GetSelection('m', 'a', 's', 'q', 'x')
 			fmt.Println()
-			if err != nil {
-				c.Printf("  <red>ERROR:</> %s\n", err)
-				break
+			if selErr != nil {
+				c.Printf("  <red>ERROR:</> %s\n", selErr)
+				decided = true
+				continue
 			}
 
 			switch selection {
 			case 'm', 'a':
-				if err := s.MoveFolder(destPath, f.Prompt, 4); err != nil {
-					c.Printf("  <red>ERROR:</> moving folder: %s\n", err)
-				} else {
-					moved++
+				// Queue the move (non-blocking) and continue immediately
+				pendingMoves++
+				moved++
+				moveQueueChan <- moveAction{
+					srcPath:  item.path,
+					destPath: destPath,
+					folder:   item.folder,
 				}
+				sb.UpdateMove(c.Sprintf("<yellow>queued (%d) %s</>", pendingMoves, item.folder))
+				decided = true
+
 			case 's':
 				c.Printf("  <darkGray>skipping... removing documentary from genres...</>")
-				if err := content.RemoveDocumentaryGenre(nfoPath); err != nil {
-					c.Printf(" <red>ERROR:</> %s\n", err)
+				if rmErr := content.RemoveDocumentaryGenre(item.nfoPath); rmErr != nil {
+					c.Printf(" <red>ERROR:</> %s\n", rmErr)
 				} else {
 					c.Printf(" <darkGray>done</>\n")
 				}
+				decided = true
+
 			case 'q':
 				c.Printf("  <darkGray>querying AI...</>\n")
-				result, err := queryAI(s.Folder, true)
-				if err != nil {
-					c.Printf("  <red>ERROR:</> %s\n", err)
+				result, aiErr := queryAI(item.folder, isSeries)
+				if aiErr != nil {
+					c.Printf("  <red>ERROR:</> %s\n", aiErr)
 				} else {
 					c.Printf("  <lightYellow>AI:</> %s\n", result)
 				}
-				continue // re-ask
+				// don't set decided - re-ask
+
 			case 'x':
-				return errors.New("quitting")
+				close(moveQueueChan)
+				drainMoveResults(moveResultChan, &pendingMoves, sb)
+				return found, moved, errors.New("quitting")
 			}
-			break
 		}
 		fmt.Println()
 	}
 
-	clearLine()
-	c.Printf("<yellow>Found %d docuseries, moved %d</> out of %d series\n", found, moved, total)
+	// Close the queue and wait for all pending moves to finish
+	close(moveQueueChan)
+	drainMoveResults(moveResultChan, &pendingMoves, sb)
 
+	return found, moved, nil
+}
+
+// ExtractDocuMovies scans the movies library for documentaries via NFO files
+// and moves them to the documentary torrent-sorted import folder (m.docu)
+func ExtractDocuMovies(movieLib, docuImportLib *content.Library, sb *ktio.StatusBar) error {
+	logChan := make(chan string, 100)
+	docuChan, total, err := scanMoviesForDocus(movieLib, sb, logChan)
+	if err != nil {
+		return err
+	}
+
+	found, moved, err := processDocuItems(docuChan, docuImportLib, false, sb, logChan)
+	if err != nil {
+		return err
+	}
+
+	c.Printf("<yellow>Found %d documentaries, moved %d</> out of %d movies\n", found, moved, total)
+	return nil
+}
+
+// ExtractDocuSeries scans the TV library for docuseries via NFO files
+// and moves them to the docuseries torrent-sorted import folder (s.docu)
+func ExtractDocuSeries(tvLib, docuImportLib *content.Library, sb *ktio.StatusBar) error {
+	logChan := make(chan string, 100)
+	docuChan, total, err := scanSeriesForDocus(tvLib, sb, logChan)
+	if err != nil {
+		return err
+	}
+
+	found, moved, err := processDocuItems(docuChan, docuImportLib, true, sb, logChan)
+	if err != nil {
+		return err
+	}
+
+	c.Printf("<yellow>Found %d docuseries, moved %d</> out of %d series\n", found, moved, total)
 	return nil
 }

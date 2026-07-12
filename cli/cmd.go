@@ -6,6 +6,7 @@ import (
 
 	c "github.com/gookit/color"
 	"github.com/katbyte/go-ingest-media/lib/content"
+	"github.com/katbyte/go-ingest-media/lib/ktio"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -88,13 +89,16 @@ func Make(cmdName string) (*cobra.Command, error) {
 		Long:          `Scan movie and TV libraries for content marked as documentary via NFO genre files and move them to the m.docu/s.docu torrent-sorted import folders`,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			sb := ktio.NewStatusBar()
+			defer sb.Close()
+
 			// Extract documentary movies: video-movies --> torrent-documentary (m.docu)
 			moviesLib := content.Libraries["video-movies"]
 			docuImportLib := content.Libraries["torrent-documentary"]
 
 			c.Printf("<white>%s</> --> <lightBlue>%s</> ", moviesLib.Path, docuImportLib.Path)
 			fmt.Println()
-			if err := ExtractDocuMovies(moviesLib, docuImportLib); err != nil {
+			if err := ExtractDocuMovies(moviesLib, docuImportLib, sb); err != nil {
 				return err
 			}
 
@@ -105,7 +109,7 @@ func Make(cmdName string) (*cobra.Command, error) {
 			fmt.Println()
 			c.Printf("<white>%s</> --> <lightBlue>%s</> ", tvLib.Path, docuseriesImportLib.Path)
 			fmt.Println()
-			if err := ExtractDocuSeries(tvLib, docuseriesImportLib); err != nil {
+			if err := ExtractDocuSeries(tvLib, docuseriesImportLib, sb); err != nil {
 				return err
 			}
 
