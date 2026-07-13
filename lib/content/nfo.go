@@ -12,6 +12,8 @@ import (
 
 // NfoFile represents the relevant fields from an Emby/Jellyfin NFO XML file
 type NfoFile struct {
+	Title   string   `xml:"title"`
+	Year    string   `xml:"year"`
 	Genres  []string `xml:"genre"`
 	Plot    string   `xml:"plot"`
 	Outline string   `xml:"outline"`

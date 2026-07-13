@@ -10,6 +10,10 @@ import (
 type FlagData struct {
 	Prompt         bool
 	IgnoreExisting bool
+	RadarrUrl      string
+	RadarrApiKey   string
+	RadarrBasePath string
+	RadarrPathMaps []string
 }
 
 func configureFlags(root *cobra.Command) error {
@@ -18,11 +22,19 @@ func configureFlags(root *cobra.Command) error {
 
 	pflags.BoolVarP(&flags.Prompt, "prompt", "p", false, "prompt for confirmation before each file operation")
 	pflags.BoolVarP(&flags.IgnoreExisting, "ignore-existing", "i", false, "skip items that already exist at the destination")
+	pflags.StringVar(&flags.RadarrUrl, "radarr-url", "", "Radarr API URL (e.g. http://localhost:7878)")
+	pflags.StringVar(&flags.RadarrApiKey, "radarr-api-key", "", "Radarr API Key")
+	pflags.StringVar(&flags.RadarrBasePath, "radarr-base-path", "", "Base path for Radarr (e.g. /mnt/video)")
+	pflags.StringArrayVar(&flags.RadarrPathMaps, "radarr-path-map", nil, "Map Radarr path segments to local (e.g. documentary=docu), repeatable")
 
 	// binding map for viper/pflag -> env
 	m := map[string]string{
-		"prompt":          "INGEST_PROMPT",
-		"ignore-existing": "INGEST_IGNORE_EXISTING",
+		"prompt":           "INGEST_PROMPT",
+		"ignore-existing":  "INGEST_IGNORE_EXISTING",
+		"radarr-url":       "RADARR_URL",
+		"radarr-api-key":   "RADARR_API_KEY",
+		"radarr-base-path": "RADARR_BASE_PATH",
+		"radarr-path-map":  "",
 	}
 
 	for name, env := range m {
@@ -44,5 +56,9 @@ func GetFlags() FlagData {
 	return FlagData{
 		Prompt:         viper.GetBool("prompt"),
 		IgnoreExisting: viper.GetBool("ignore-existing"),
+		RadarrUrl:      viper.GetString("radarr-url"),
+		RadarrApiKey:   viper.GetString("radarr-api-key"),
+		RadarrBasePath: viper.GetString("radarr-base-path"),
+		RadarrPathMaps: viper.GetStringSlice("radarr-path-map"),
 	}
 }

@@ -45,9 +45,16 @@ func ProcessMovies(id string, mapping content.LibraryMapping) error {
 			continue
 		}
 
+		// Check if a rename mapping was applied
+		renamed := path.Base(destPath) != m.Folder
+
 		// if destination doesn't exist, just move folder
 		if !ktio.PathExists(destPath) {
-			c.Printf("<darkGray>%d/%d</> <white>%s</> --> <green>%s</>", i, nMovies, m.Folder, path.Base(destPath))
+			if renamed {
+				c.Printf("<darkGray>%d/%d</> <white>%s</> --> <bgMagenta;white;op=bold> RENAMED </> <green>%s</>", i, nMovies, m.Folder, path.Base(destPath))
+			} else {
+				c.Printf("<darkGray>%d/%d</> <white>%s</> --> <green>%s</>", i, nMovies, m.Folder, path.Base(destPath))
+			}
 			if err := m.MoveFolder(destPath, f.Prompt, 4); err != nil {
 				c.Printf(" <red>ERROR:</> moving folder: %s\n", err)
 			}
@@ -55,7 +62,11 @@ func ProcessMovies(id string, mapping content.LibraryMapping) error {
 		}
 
 		// exists so lets grab the video details
-		c.Printf("<darkGray>%d/%d</>  <white>%s</> --> <yellow>%s</>\n", i, nMovies, m.Folder, path.Base(destPath))
+		if renamed {
+			c.Printf("<darkGray>%d/%d</>  <white>%s</> --> <bgMagenta;white;op=bold> RENAMED </> <yellow>%s</>\n", i, nMovies, m.Folder, path.Base(destPath))
+		} else {
+			c.Printf("<darkGray>%d/%d</>  <white>%s</> --> <yellow>%s</>\n", i, nMovies, m.Folder, path.Base(destPath))
+		}
 
 		// load source videos
 		if err = m.LoadVideos(); err != nil {

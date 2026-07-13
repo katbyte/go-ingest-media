@@ -117,6 +117,18 @@ func Make(cmdName string) (*cobra.Command, error) {
 		},
 	})
 
+	// find and list duplicate existing movies in radarr
+	root.AddCommand(&cobra.Command{
+		Use:           "radarr-dedup",
+		Short:         cmdName + " connects to Radarr and finds duplicate/existing folders",
+		Long:          `Connects to Radarr via API, scans all root folders via the manual import endpoint, and lists out folders that Radarr flags as "Existing" duplicates.`,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			flags := GetFlags()
+			return DedupRadarr(flags.RadarrUrl, flags.RadarrApiKey, flags.RadarrBasePath, flags.RadarrPathMaps)
+		},
+	})
+
 	// find folders in wrong letter directories and move them to torrent folders
 	root.AddCommand(&cobra.Command{
 		Use:           "fix-lettering",
