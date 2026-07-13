@@ -157,6 +157,29 @@ func Make(cmdName string) (*cobra.Command, error) {
 		},
 	})
 
+	root.AddCommand(&cobra.Command{
+		Use:           "anime-dedup",
+		Short:         cmdName + " check for duplicate anime in standard libraries",
+		Long:          `Locally compares folders in anime/movies vs movies, and anime/tv vs tv. It flags any identical (or renamed) folders as duplicates and allows you to keep one. If you keep the standard version, it will be moved to the anime library.`,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c.Printf("<yellow>Checking Anime Movies vs Movies</>\n")
+			err := FindAndCombineAnime(content.Libraries["video-anime-movies"], content.Libraries["video-movies"], content.LibraryTypeMovies)
+			if err != nil {
+				return err
+			}
+
+			fmt.Println()
+			c.Printf("<yellow>Checking Anime Series vs TV</>\n")
+			err = FindAndCombineAnime(content.Libraries["video-anime-series"], content.Libraries["video-tv"], content.LibraryTypeSeries)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		},
+	})
+
 	if err := configureFlags(root); err != nil {
 		return nil, fmt.Errorf("unable to configure flags: %w", err)
 	}
