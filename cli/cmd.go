@@ -117,6 +117,34 @@ func Make(cmdName string) (*cobra.Command, error) {
 		},
 	})
 
+	// find folders in wrong letter directories and move them to torrent folders
+	root.AddCommand(&cobra.Command{
+		Use:           "fix-lettering",
+		Short:         cmdName + " find movies/tv in wrong letter folders and move to import folders",
+		Long:          `Scan movie and TV libraries for folders that are placed in the wrong letter directory and move them to the s.tv and m.movies torrent-sorted import folders to be re-processed.`,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			sb := ktio.NewStatusBar()
+			defer sb.Close()
+
+			// Movies
+			if err := FixLettering(content.Libraries["video-movies"], content.Libraries["torrent-movies"], sb); err != nil {
+				return err
+			}
+			fmt.Println()
+			// TV
+			if err := FixLettering(content.Libraries["video-tv"], content.Libraries["torrent-tv"], sb); err != nil {
+				return err
+			}
+			// Anime Series
+			fmt.Println()
+			if err := FixLettering(content.Libraries["video-anime-series"], content.Libraries["torrent-anime-series"], sb); err != nil {
+				return err
+			}
+			return nil
+		},
+	})
+
 	if err := configureFlags(root); err != nil {
 		return nil, fmt.Errorf("unable to configure flags: %w", err)
 	}
