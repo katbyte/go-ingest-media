@@ -1,9 +1,9 @@
 package content
 
 import (
-	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 var prefixes = [...]string{"The ", "A ", "An "}
@@ -17,17 +17,20 @@ func GetLetter(folder string) string {
 		}
 	}
 
-	// get first letter
-	letter := strings.ToLower(string(s[0]))
-	c := letter[0]
-
-	// if a number use 0
-	if _, err := strconv.Atoi(letter); err == nil {
-		letter = "0"
-		// else if not a letter use @
-	} else if !unicode.IsLetter(rune(c)) {
-		letter = "@"
+	// get first rune
+	r, _ := utf8.DecodeRuneInString(s)
+	if r == utf8.RuneError {
+		return "@"
 	}
 
-	return letter
+	if r >= '0' && r <= '9' {
+		return "0"
+	}
+
+	lower := unicode.ToLower(r)
+	if lower >= 'a' && lower <= 'z' {
+		return string(lower)
+	}
+
+	return "@"
 }

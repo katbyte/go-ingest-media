@@ -118,8 +118,8 @@ func FixLettering(sourceLib, destLib *content.Library, sb *ktio.StatusBar) error
 		destPath := filepath.Join(destLib.Path, item.folderName)
 		c.Printf("    moving to <lightBlue>%s</>\n", destPath)
 
-		c.Printf("    [m]ove/[a]ccept | [s]kip | [q]uit: ")
-		selection, err := ktio.GetSelection('m', 'a', 's', 'q')
+		c.Printf("    [m]ove/[a]ccept | [s]kip | e[x]it: ")
+		selection, err := ktio.GetSelection('m', 'a', 's', 'x')
 		fmt.Println()
 		if err != nil {
 			c.Printf("    <red>ERROR:</> %s\n", err)
@@ -137,7 +137,7 @@ func FixLettering(sourceLib, destLib *content.Library, sb *ktio.StatusBar) error
 			sb.UpdateMove(c.Sprintf("<yellow>queued (%d) %s</>", pendingMoves, item.folderName))
 		case 's':
 			c.Println("    <darkGray>skipped</>")
-		case 'q':
+		case 'x':
 			close(moveQueueChan)
 			drainMoveResults(moveResultChan, &pendingMoves, sb)
 			return nil
