@@ -94,9 +94,9 @@ func ProcessMovies(id string, mapping content.LibraryMapping) error {
 			}
 
 			RenderVideoComparisonTable(2, headers, m.Videos)
-			c.Printf(" pick source to keep (1-%d) skip (s) quit (q): ", len(m.Videos))
+			c.Printf(" pick source to keep (1-%d) skip (s) e[x]it: ", len(m.Videos))
 
-			options := []rune{'s', 'q'}
+			options := []rune{'s', 'x'}
 			for k := 1; k <= len(m.Videos) && k <= 9; k++ {
 				options = append(options, rune('0'+k))
 			}
@@ -107,7 +107,7 @@ func ProcessMovies(id string, mapping content.LibraryMapping) error {
 				continue
 			}
 
-			if s == 'q' {
+			if s == 'x' {
 				return errors.New("quitting")
 			}
 			if s == 's' {
@@ -168,8 +168,8 @@ func ProcessMovies(id string, mapping content.LibraryMapping) error {
 			}
 		}
 		RenderVideoComparisonTable(2, headers, append([]content.VideoFile{srcVideo}, dstVideos...))
-		c.Printf(" overwrite (y/a?) delete src (d?) skip (s?) pick dest (1-%d) quit (q?): ", len(dstVideos))
-		options := []rune{'a', 'y', 'd', 's', 'q'}
+		c.Printf(" overwrite (y/a?) delete src (d?) skip (s?) pick dest (1-%d) e[x]it: ", len(dstVideos))
+		options := []rune{'a', 'y', 'd', 's', 'x'}
 		for k := 1; k <= len(dstVideos) && k <= 9; k++ {
 			options = append(options, rune('0'+k))
 		}
@@ -211,7 +211,7 @@ func ProcessMovies(id string, mapping content.LibraryMapping) error {
 		case 'd':
 			srcPathsToDelete = append(srcPathsToDelete, m.Path())
 			continue
-		case 'q':
+		case 'x':
 			return errors.New("quitting")
 		}
 	}

@@ -133,8 +133,8 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 					}
 					RenderVideoComparisonTable(indent+6, headers, se.Videos)
 
-					c.Printf("%s     pick source to keep (1-%d) skip (s) quit (q): ", intentStr, len(se.Videos))
-					options := []rune{'s', 'q'}
+					c.Printf("%s     pick source to keep (1-%d) skip (s) e[x]it: ", intentStr, len(se.Videos))
+					options := []rune{'s', 'x'}
 					for k := 1; k <= len(se.Videos) && k <= 9; k++ {
 						options = append(options, rune('0'+k))
 					}
@@ -145,7 +145,7 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 						continue
 					}
 
-					if s == 'q' {
+					if s == 'x' {
 						return errors.New("quitting")
 					}
 					if s == 's' {
@@ -263,8 +263,8 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 				case skipAll:
 					s = 'S'
 				default:
-					c.Printf(" overwrite (y/a/A (all)?) delete src (d/D (all)?) pick dest (1-%d) skip (s/S?) quit (q?): ", len(de.Videos))
-					options := []rune{'a', 'y', 'd', 's', 'q', 'A', 'D', 'S'}
+					c.Printf(" overwrite (y/a/A (all)?) delete src (d/D (all)?) pick dest (1-%d) skip (s/S?) e[x]it: ", len(de.Videos))
+					options := []rune{'a', 'y', 'd', 's', 'x', 'A', 'D', 'S'}
 					for k := 1; k <= len(de.Videos) && k <= 9; k++ {
 						options = append(options, rune('0'+k))
 					}
@@ -336,7 +336,7 @@ func ProcessSeries(id string, mapping content.LibraryMapping) error {
 					continue
 				case 's':
 					continue
-				case 'q':
+				case 'x':
 					return errors.New("quitting")
 				}
 				fmt.Println()

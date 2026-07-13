@@ -126,7 +126,7 @@ func FindAndCombineDocuSeries(docuseriesLibrary, tvLibrary *content.Library) err
 
 		// Process episode by episode
 		if processSeriesEpisodes(docuEntry, tvEntry) {
-			return errors.New("quitting")
+			return errors.New("exiting")
 		}
 
 		// Clean up empty TV folders
@@ -264,8 +264,8 @@ func processSeriesEpisodes(docu, tv *content.Series) bool {
 			}
 
 			// Ask what to do
-			c.Printf("        keep [d]ocu | keep [t]v | [s]kip | [q]uit: ")
-			selection, err := ktio.GetSelection('d', 't', 's', 'q')
+			c.Printf("        delete [d]ocu | delete [t]v | [s]kip | e[x]it: ")
+			selection, err := ktio.GetSelection('d', 't', 's', 'x')
 			fmt.Println()
 			if err != nil {
 				c.Printf("        <red>ERROR:</> %s\n", err)

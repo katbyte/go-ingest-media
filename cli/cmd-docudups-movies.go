@@ -115,8 +115,8 @@ func FindAndCombineDocu(docuLibrary, movieLibrary *content.Library) error {
 		}
 
 		// Ask user what to do
-		c.Printf("  Actions: keep <cyan>[d]ocu</> | keep <magenta>[m]ovie</> | [s]kip | [q]uit: ")
-		selection, err := ktio.GetSelection('d', 'm', 's', 'q')
+		c.Printf("  Actions: keep <cyan>[d]ocu</> | keep <magenta>[m]ovie</> | [s]kip | e[x]it: ")
+		selection, err := ktio.GetSelection('d', 'm', 's', 'x')
 		fmt.Println()
 		if err != nil {
 			c.Printf("  <red>ERROR:</> %s\n", err)
@@ -149,7 +149,7 @@ func FindAndCombineDocu(docuLibrary, movieLibrary *content.Library) error {
 			c.Printf("  <darkGray>Skipping...</>\n")
 			continue
 
-		case 'q':
+		case 'x':
 			return errors.New("quitting")
 		}
 	}
